@@ -1,0 +1,13 @@
+{
+  "ExpandedNodes": [
+    "",
+    "\\DummyService1",
+    "\\DummyService1\\DummyService1",
+    "\\DummyService2",
+    "\\DummyService2\\DummyService2",
+    "\\DummyService3",
+    "\\DummyService3\\DummyService3"
+  ],
+  "SelectedNode": "\\DummyService3\\DummyService3\\App.cpp",
+  "PreviewInSolutionExplorer": false
+}

@@ -1,0 +1,25 @@
+﻿#pragma once
+
+#include <Windows.h>
+
+class App
+{
+public:
+    App();
+    ~App();
+
+    // Initialize the Win32 window. Returns true on success.
+    bool Initialize(HINSTANCE hInstance, int nCmdShow);
+
+    // Run the message loop. Returns the exit code.
+    int Run();
+
+    // Window procedure for the application's main window.
+    static LRESULT CALLBACK WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
+
+private:
+    HINSTANCE m_hInstance;
+    HWND m_hWnd;
+    const wchar_t* m_windowClassName = L"BasicAppWindowClass";
+    const wchar_t* m_windowTitle = L"Dummy Service 1";
+};
