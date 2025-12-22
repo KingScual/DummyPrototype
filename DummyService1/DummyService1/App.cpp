@@ -2,6 +2,7 @@
 
 #include <cwchar>
 #include <string>
+#include "zmq.hpp"
 
 // Constructor: initialize internal handles to null.
 App::App()
