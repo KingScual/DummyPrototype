@@ -5,6 +5,10 @@
 #endif
 
 #include <Windows.h>
+#include <memory>
+
+// Forward declare or include ZeroMQ publisher helper
+#include "ZeroMQ.h"
 
 // Simple application class that wraps a Win32 window and a button.
 class App
@@ -28,6 +32,9 @@ public:
     // Set text in the receive box (used to receive data from another application).
     void SetReceivedText(const wchar_t* text);
 
+    // Custom Windows message posted when a ZMQ message arrives
+    static const UINT WM_ZMQ_MESSAGE = WM_APP + 1;
+
 private:
     HINSTANCE m_hInstance; // Application instance handle
     HWND m_hWnd;           // Main window handle
@@ -44,4 +51,10 @@ private:
 
     const wchar_t* m_windowClassName = L"BasicAppWindowClass";
     const wchar_t* m_windowTitle = L"Dummy Service 1";
+
+    // ZeroMQ publisher used to send messages when the button is clicked
+    std::unique_ptr<ZeroMQPublisher> m_publisher;
+
+    // ZeroMQ subscriber used to receive messages in the background
+    std::unique_ptr<ZeroMQSubscriber> m_subscriber;
 };
