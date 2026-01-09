@@ -27,7 +27,7 @@ ZeroMQPublisher::~ZeroMQPublisher()
 }
 
 // init()
-// - Creates and binds a ZMQ PUB socket to the configured address
+// - Creates and binds a ZMQ PUB socket to the configured address (EPGM multicast supported if available)
 // - Sets socket options (linger = 0 so close returns quickly)
 // - Small sleep to allow subscribers to connect (optional)
 // - Thread-safe using mutex
@@ -44,7 +44,7 @@ bool ZeroMQPublisher::init()
         int linger = 0;
         socket_->set(zmq::sockopt::linger, linger);
 
-        // Bind the publisher socket to the configured address (e.g. "tcp://*:5556")
+        // Bind the publisher socket to the configured address
         socket_->bind(bindAddress_);
 
         // Give subscribers a moment to connect (optional small pause)
@@ -55,7 +55,7 @@ bool ZeroMQPublisher::init()
     }
     catch (const zmq::error_t& e) {
         // Report init errors and reset state
-        std::cerr << "ZeroMQPublisher init error: " << e.what() << "\n";
+        std::cout << "ZeroMQPublisher init error: " << e.what() << "\n";
         socket_.reset();
         initialized_ = false;
         return false;

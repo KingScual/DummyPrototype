@@ -8,13 +8,14 @@
 #include <atomic>
 #include <vector>
 
+#define ZMQ_BUILD_DRAFT_API
 // Forward include for cppzmq
 #include <zmq.hpp>
 
 class ZeroMQPublisher
 {
 public:
-    // bindAddress example: "tcp://*:5556"
+    // bindAddress example: "epgm://;239.192.1.1:5556" (EPGM multicast)
     explicit ZeroMQPublisher(const std::string& bindAddress = "tcp://*:5556");
     ~ZeroMQPublisher();
 
@@ -40,12 +41,12 @@ private:
 class ZeroMQSubscriber
 {
 public:
-    // connectAddress example: "tcp://localhost:5556"
+    // connectAddress example: "epgm://;239.192.1.1:5556" (EPGM multicast)
     // topicFilters example: empty vector subscribes to everything, or a list of topics to receive only those
     explicit ZeroMQSubscriber(const std::string& connectAddress = "tcp://localhost:5556",
         const std::vector<std::string>& topicFilters = {});
     ~ZeroMQSubscriber();
-
+    
     // Initialize and connect the subscriber socket. Returns true on success.
     bool init();
 

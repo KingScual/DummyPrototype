@@ -10,13 +10,14 @@
 #include <vector>
 
 // Forward include for cppzmq
+#define ZMQ_BUILD_DRAFT_API
 #include <zmq.hpp>
 
 class ZeroMQPublisher
 {
 public:
     // bindAddress example: "tcp://*:5556"
-    explicit ZeroMQPublisher(const std::string& bindAddress = "tcp://*:5556");
+    explicit ZeroMQPublisher(const std::string& bindAddress = "tcp://*:5558");
     ~ZeroMQPublisher();
 
     // Initialize and bind the publisher socket. Returns true on success.

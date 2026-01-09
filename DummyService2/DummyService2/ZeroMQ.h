@@ -9,13 +9,14 @@
 #include <vector>
 
 // Forward include for cppzmq
+#define ZMQ_BUILD_DRAFT_API
 #include <zmq.hpp>
 
 class ZeroMQPublisher
 {
 public:
     // bindAddress example: "tcp://*:5556"
-    explicit ZeroMQPublisher(const std::string& bindAddress = "tcp://*:5556");
+    explicit ZeroMQPublisher(const std::string& bindAddress = "tcp://*:5557");
     ~ZeroMQPublisher();
 
     // Initialize and bind the publisher socket. Returns true on success.
@@ -42,7 +43,7 @@ class ZeroMQSubscriber
 public:
     // connectAddress example: "tcp://localhost:5556"
     // topicFilters example: empty vector subscribes to everything, or a list of topics to receive only those
-    explicit ZeroMQSubscriber(const std::string& connectAddress = "tcp://localhost:5556",
+    explicit ZeroMQSubscriber(const std::string& connectAddress = "tcp://localhost:5558",
         const std::vector<std::string>& topicFilters = {});
     ~ZeroMQSubscriber();
 

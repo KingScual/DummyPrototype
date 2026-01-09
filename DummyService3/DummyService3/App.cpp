@@ -142,7 +142,6 @@ bool App::Initialize(HINSTANCE hInstance, int nCmdShow)
     UpdateWindow(m_hWnd);
 
     // Initialize ZeroMQ publisher to send messages when the button is clicked.
-    // Default bind address matches the publisher's default, change if needed.
     try {
         m_publisher = std::make_unique<ZeroMQPublisher>("tcp://*:5558");
         if (!m_publisher->init()) {
@@ -157,7 +156,8 @@ bool App::Initialize(HINSTANCE hInstance, int nCmdShow)
 
     // Initialize ZeroMQ subscriber to receive messages in background and post to UI
     try {
-        m_subscriber = std::make_unique<ZeroMQSubscriber>("tcp://127.0.0.1:5557", std::vector<std::string>{"Dummy1", "Dummy2"}); // subscribe to Dummy1 and Dummy2
+        // Connect to the same multicast group; subscribe to topics Dummy1 and Dummy2
+        m_subscriber = std::make_unique<ZeroMQSubscriber>("tcp://localhost:5556", std::vector<std::string>{"Dummy1", "Dummy2"}); // subscribe to Dummy1 and Dummy2
         if (m_subscriber->init()) {
             // start receiving; callback will post WM_ZMQ_MESSAGE to UI thread
             m_subscriber->start([this](const std::string& topic, const std::string& message) {
@@ -325,7 +325,7 @@ void App::OnButtonClicked()
 
         // Publish using ZeroMQ publisher if available
         if (m_publisher) {
-            bool published = m_publisher->publish("Dummy2", msg);
+            bool published = m_publisher->publish("Dummy3", msg);
             if (published) {
                 MessageBoxW(m_hWnd, L"Message published successfully.", L"Info", MB_OK | MB_ICONINFORMATION);
             }

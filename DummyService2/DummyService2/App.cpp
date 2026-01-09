@@ -142,9 +142,8 @@ bool App::Initialize(HINSTANCE hInstance, int nCmdShow)
     UpdateWindow(m_hWnd);
 
     // Initialize ZeroMQ publisher to send messages when the button is clicked.
-    // Default bind address matches the publisher's default, change if needed.
     try {
-        m_publisher = std::make_unique<ZeroMQPublisher>("tcp://*:5556");
+        m_publisher = std::make_unique<ZeroMQPublisher>("tcp://*:5557");
         if (!m_publisher->init()) {
             // Initialization failed; keep the pointer so publish() can attempt init lazily.
             OutputDebugStringA("ZeroMQ publisher init failed\n");
@@ -157,7 +156,8 @@ bool App::Initialize(HINSTANCE hInstance, int nCmdShow)
 
     // Initialize ZeroMQ subscriber to receive messages in background and post to UI
     try {
-        m_subscriber = std::make_unique<ZeroMQSubscriber>("tcp://127.0.0.1:5557", std::vector<std::string>{"Dummy1", "Dummy3"}); // subscribe to Dummy1 and Dummy3
+        // Connect to the same multicast group; subscribe to topics Dummy1 and Dummy3
+        m_subscriber = std::make_unique<ZeroMQSubscriber>("tcp://localhost:5558", std::vector<std::string>{"Dummy1", "Dummy3"}); // subscribe to Dummy1 and Dummy3
         if (m_subscriber->init()) {
             // start receiving; callback will post WM_ZMQ_MESSAGE to UI thread
             m_subscriber->start([this](const std::string& topic, const std::string& message) {
