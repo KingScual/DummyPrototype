@@ -344,12 +344,6 @@ void App::OnButtonClicked()
 // SetReceivedText: set the text shown in the receive-only edit control (used by other apps to send data).
 void App::SetReceivedText(const wchar_t* text)
 {
-    // THIS IS MOST LIKELY WHERE WE PUT THE CODE FOR THE APP TO RECEIVE MESSAGES
-      /*
-        code here
-
-      */
-
     SetWindowTextW(m_hReceiveEdit, text ? text : L"");
 }
 

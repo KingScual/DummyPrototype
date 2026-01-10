@@ -15,7 +15,7 @@
 class ZeroMQPublisher
 {
 public:
-    // bindAddress example: "epgm://;239.192.1.1:5556" (EPGM multicast)
+    // bindAddress
     explicit ZeroMQPublisher(const std::string& bindAddress = "tcp://*:5556");
     ~ZeroMQPublisher();
 
@@ -41,7 +41,7 @@ private:
 class ZeroMQSubscriber
 {
 public:
-    // connectAddress example: "epgm://;239.192.1.1:5556" (EPGM multicast)
+    // connectAddress
     // topicFilters example: empty vector subscribes to everything, or a list of topics to receive only those
     explicit ZeroMQSubscriber(const std::string& connectAddress = "tcp://localhost:5556",
         const std::vector<std::string>& topicFilters = {});

@@ -1,4 +1,5 @@
 #include "App.h"
+#include "BitStreamConversion.h"
 
 #include <cwchar>
 #include <string>
@@ -6,7 +7,7 @@
 
 // Constructor: initialize internal handles to null.
 App::App()
-    : m_hInstance(nullptr), m_hWnd(nullptr), m_hButton(nullptr), m_hEdit(nullptr), m_hReceiveEdit(nullptr), m_publisher(nullptr), m_subscriber(nullptr)
+    : m_hInstance(nullptr), m_hWnd(nullptr), m_hButton(nullptr), m_hEdit(nullptr), m_hReceiveEdit(nullptr), m_publisher(nullptr), m_subscriber(nullptr), m_subscriber2(nullptr)
 {
 }
 
@@ -186,6 +187,37 @@ bool App::Initialize(HINSTANCE hInstance, int nCmdShow)
         OutputDebugStringA(ex.what());
     }
 
+    try {
+        // Connect to the same multicast group; subscribe to topics Dummy2 and Dummy3
+        m_subscriber2 = std::make_unique<ZeroMQSubscriber>("tcp://localhost:5558", std::vector<std::string>{"Dummy2", "Dummy3"}); // subscribe to Dummy2 and Dummy3
+        if (m_subscriber2->init()) {
+            // start receiving; callback will post WM_ZMQ_MESSAGE to UI thread
+            m_subscriber2->start([this](const std::string& topic, const std::string& message) {
+                // Convert message (UTF-8) to wide string
+                int wlen = MultiByteToWideChar(CP_UTF8, 0, message.c_str(), -1, nullptr, 0);
+                if (wlen > 0) {
+                    wchar_t* wbuf = reinterpret_cast<wchar_t*>(GlobalAlloc(GMEM_FIXED, wlen * sizeof(wchar_t)));
+                    if (wbuf) {
+                        MultiByteToWideChar(CP_UTF8, 0, message.c_str(), -1, wbuf, wlen);
+                        // Post to UI thread; WindowProc will free the buffer
+                        if (m_hWnd) {
+                            PostMessageW(m_hWnd, WM_ZMQ_MESSAGE, 0, reinterpret_cast<LPARAM>(wbuf));
+                        }
+                        else {
+                            GlobalFree(wbuf);
+                        }
+                    }
+                }
+                });
+        }
+        else {
+            OutputDebugStringA("ZeroMQ subscriber2 init failed\n");
+        }
+    }
+    catch (const std::exception& ex) {
+        OutputDebugStringA(ex.what());
+    }
+
     return true;
 }
 
@@ -311,21 +343,23 @@ void App::OnButtonClicked()
     const int bufSize = 1024;
     wchar_t buffer[bufSize] = {};
     int len = GetWindowTextW(m_hEdit, buffer, bufSize);
-    if (len > 0)
+    //convert message to bitstream
+    auto strm = BitStreamConversion::ToBitStream(len);
+    if (strm > 0)
     {
         //MessageBoxW(m_hWnd, buffer, L"Submitted Text", MB_OK | MB_ICONINFORMATION);
 
         // Convert wide char (UTF-16) buffer to UTF-8 std::string for ZeroMQ
-        int utf8Len = WideCharToMultiByte(CP_UTF8, 0, buffer, len, nullptr, 0, nullptr, nullptr);
+        int utf8Len = WideCharToMultiByte(CP_UTF8, 0, buffer, strm, nullptr, 0, nullptr, nullptr);
         std::string msg;
         if (utf8Len > 0) {
             msg.resize(utf8Len);
-            WideCharToMultiByte(CP_UTF8, 0, buffer, len, &msg[0], utf8Len, nullptr, nullptr);
+            WideCharToMultiByte(CP_UTF8, 0, buffer, strm, &msg[0], utf8Len, nullptr, nullptr);
         }
 
         // Publish using ZeroMQ publisher if available
         if (m_publisher) {
-            bool published = m_publisher->publish("Dummy1", msg);
+            bool published = m_publisher->publish("Dummy1", strm);
             if (published) {
                 MessageBoxW(m_hWnd, L"Message published successfully.", L"Info", MB_OK | MB_ICONINFORMATION);
             }
@@ -344,12 +378,6 @@ void App::OnButtonClicked()
 // SetReceivedText: set the text shown in the receive-only edit control (used by other apps to send data).
 void App::SetReceivedText(const wchar_t* text)
 {
-    // THIS IS MOST LIKELY WHERE WE PUT THE CODE FOR THE APP TO RECEIVE MESSAGES
-      /*
-        code here
-
-      */
-
     SetWindowTextW(m_hReceiveEdit, text ? text : L"");
 }
 
