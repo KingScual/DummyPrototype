@@ -2,17 +2,25 @@
 
 #include <cwchar>
 #include <string>
-#include <vector>
+#include "zmq.hpp"
 
 // Constructor: initialize internal handles to null.
 App::App()
-    : m_hInstance(nullptr), m_hWnd(nullptr), m_hButton(nullptr), m_hEdit(nullptr), m_hReceiveEdit(nullptr)
+    : m_hInstance(nullptr), m_hWnd(nullptr), m_hButton(nullptr), m_hEdit(nullptr), m_hReceiveEdit(nullptr), m_publisher(nullptr), m_subscriber(nullptr)
 {
 }
 
 // Destructor: destroy the main window if created and unregister the window class.
 App::~App()
 {
+    // Stop and destroy the subscriber if present
+    if (m_subscriber)
+    {
+        try { m_subscriber->stop(); m_subscriber->close(); }
+        catch (...) {}
+        m_subscriber.reset();
+    }
+
     if (m_hWnd)
     {
         DestroyWindow(m_hWnd);
@@ -24,6 +32,8 @@ App::~App()
         UnregisterClassW(m_windowClassName, m_hInstance);
         m_hInstance = nullptr;
     }
+
+    // m_publisher will be cleaned up automatically (its destructor calls close())
 }
 
 // Initialize: register the window class, create the main window and child controls (button).
@@ -131,6 +141,51 @@ bool App::Initialize(HINSTANCE hInstance, int nCmdShow)
     ShowWindow(m_hWnd, nCmdShow);
     UpdateWindow(m_hWnd);
 
+    // Initialize ZeroMQ publisher to send messages when the button is clicked.
+    try {
+        m_publisher = std::make_unique<ZeroMQPublisher>("tcp://*:5558");
+        if (!m_publisher->init()) {
+            // Initialization failed; keep the pointer so publish() can attempt init lazily.
+            OutputDebugStringA("ZeroMQ publisher init failed\n");
+        }
+    }
+    catch (const std::exception& ex) {
+        // If ZeroMQ or allocation throws, log but continue running the UI
+        OutputDebugStringA(ex.what());
+    }
+
+    // Initialize ZeroMQ subscriber to receive messages in background and post to UI
+    try {
+        // Connect to the same multicast group; subscribe to topics Dummy1 and Dummy2
+        m_subscriber = std::make_unique<ZeroMQSubscriber>("tcp://localhost:5556", std::vector<std::string>{"Dummy1", "Dummy2"}); // subscribe to Dummy1 and Dummy2
+        if (m_subscriber->init()) {
+            // start receiving; callback will post WM_ZMQ_MESSAGE to UI thread
+            m_subscriber->start([this](const std::string& topic, const std::string& message) {
+                // Convert message (UTF-8) to wide string
+                int wlen = MultiByteToWideChar(CP_UTF8, 0, message.c_str(), -1, nullptr, 0);
+                if (wlen > 0) {
+                    wchar_t* wbuf = reinterpret_cast<wchar_t*>(GlobalAlloc(GMEM_FIXED, wlen * sizeof(wchar_t)));
+                    if (wbuf) {
+                        MultiByteToWideChar(CP_UTF8, 0, message.c_str(), -1, wbuf, wlen);
+                        // Post to UI thread; WindowProc will free the buffer
+                        if (m_hWnd) {
+                            PostMessageW(m_hWnd, WM_ZMQ_MESSAGE, 0, reinterpret_cast<LPARAM>(wbuf));
+                        }
+                        else {
+                            GlobalFree(wbuf);
+                        }
+                    }
+                }
+                });
+        }
+        else {
+            OutputDebugStringA("ZeroMQ subscriber init failed\n");
+        }
+    }
+    catch (const std::exception& ex) {
+        OutputDebugStringA(ex.what());
+    }
+
     return true;
 }
 
@@ -187,26 +242,6 @@ LRESULT CALLBACK App::WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPa
         return 0;
     }
 
-    case WM_COPYDATA:
-    {
-        PCOPYDATASTRUCT pCds = reinterpret_cast<PCOPYDATASTRUCT>(lParam);
-        App* pThis = reinterpret_cast<App*>(GetWindowLongPtrW(hWnd, GWLP_USERDATA));
-        if (pThis && pCds && pCds->lpData && pCds->cbData > 0)
-        {
-            size_t wcharCount = pCds->cbData / sizeof(wchar_t);
-            std::vector<wchar_t> buf(wcharCount + 1);
-            const wchar_t* src = reinterpret_cast<const wchar_t*>(pCds->lpData);
-            if (wcharCount > 0)
-            {
-                wcsncpy_s(buf.data(), buf.size(), src, wcharCount);
-            }
-            buf[buf.size() - 1] = L'\0';
-            pThis->SetReceivedText(buf.data());
-            return TRUE;
-        }
-        break;
-    }
-
     case WM_COMMAND:
     {
         int id = LOWORD(wParam);
@@ -238,13 +273,29 @@ LRESULT CALLBACK App::WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPa
         int recvHeight = 24;
         int recvY = clientHeight - recvHeight - 10;
         int labelY = recvY - 18; // place the label a bit above the receive control
-        const wchar_t* recvLabel = L"Received data (from other applications:";
+        const wchar_t* recvLabel = L"Received data (from other applications):";
         TextOutW(hdc, 10, labelY, recvLabel, static_cast<int>(std::wcslen(recvLabel)));
 
         EndPaint(hWnd, &ps);
         return 0;
     }
 
+    }
+
+    // Handle ZMQ message posted from receiver thread
+    if (uMsg == WM_ZMQ_MESSAGE)
+    {
+        App* pThis = reinterpret_cast<App*>(GetWindowLongPtrW(hWnd, GWLP_USERDATA));
+        if (pThis)
+        {
+            wchar_t* incoming = reinterpret_cast<wchar_t*>(lParam);
+            if (incoming)
+            {
+                pThis->SetReceivedText(incoming);
+                GlobalFree(incoming);
+            }
+        }
+        return 0;
     }
 
     return DefWindowProcW(hWnd, uMsg, wParam, lParam);
@@ -262,30 +313,37 @@ void App::OnButtonClicked()
     int len = GetWindowTextW(m_hEdit, buffer, bufSize);
     if (len > 0)
     {
-        MessageBoxW(m_hWnd, buffer, L"Submitted Text", MB_OK | MB_ICONINFORMATION);
+        //MessageBoxW(m_hWnd, buffer, L"Submitted Text", MB_OK | MB_ICONINFORMATION);
+
+        // Convert wide char (UTF-16) buffer to UTF-8 std::string for ZeroMQ
+        int utf8Len = WideCharToMultiByte(CP_UTF8, 0, buffer, len, nullptr, 0, nullptr, nullptr);
+        std::string msg;
+        if (utf8Len > 0) {
+            msg.resize(utf8Len);
+            WideCharToMultiByte(CP_UTF8, 0, buffer, len, &msg[0], utf8Len, nullptr, nullptr);
+        }
+
+        // Publish using ZeroMQ publisher if available
+        if (m_publisher) {
+            bool published = m_publisher->publish("Dummy3", msg);
+            if (published) {
+                MessageBoxW(m_hWnd, L"Message published successfully.", L"Info", MB_OK | MB_ICONINFORMATION);
+            }
+            else {
+                MessageBoxW(m_hWnd, L"Failed to publish message.", L"Error", MB_OK | MB_ICONERROR);
+            }
+        }
     }
     else
     {
         MessageBoxW(m_hWnd, L"No text entered.", L"Info", MB_OK | MB_ICONINFORMATION);
     }
 
-    // MOST LIKELY WHERE WE NEED TO PUT CODE TO SEND MESSAGES
-    /*
-
-    code here
-
-    */
 }
 
 // SetReceivedText: set the text shown in the receive-only edit control (used by other apps to send data).
 void App::SetReceivedText(const wchar_t* text)
 {
-    // THIS IS MOST LIKELY WHERE WE PUT THE CODE FOR THE APP TO RECEIVE MESSAGES
-    /*
-      code here
-
-    */
-
     SetWindowTextW(m_hReceiveEdit, text ? text : L"");
 }
 
