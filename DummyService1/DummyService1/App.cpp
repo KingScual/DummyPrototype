@@ -344,22 +344,31 @@ void App::OnButtonClicked()
     wchar_t buffer[bufSize] = {};
     int len = GetWindowTextW(m_hEdit, buffer, bufSize);
     //convert message to bitstream
-    auto strm = BitStreamConversion::ToBitStream(len);
-    if (strm > 0)
+    auto strm = BitStreamConversion::ToBitStream(buffer);
+    if (strm.size() > 0) //as long as there is some data here
     {
         //MessageBoxW(m_hWnd, buffer, L"Submitted Text", MB_OK | MB_ICONINFORMATION);
-
+        // 
+        //convert strm to a string to be used in publish()
+        std::string str(strm.begin(), strm.end()); //str is still size 2048 like strm, might require a change to BitStreamConversion
+        
+        
         // Convert wide char (UTF-16) buffer to UTF-8 std::string for ZeroMQ
-        int utf8Len = WideCharToMultiByte(CP_UTF8, 0, buffer, strm, nullptr, 0, nullptr, nullptr);
+        int utf8Len = WideCharToMultiByte(CP_UTF8, 0, buffer, len, nullptr, 0, nullptr, nullptr);
+        
+        /*
+        * converting the actual bitstream w/ str, however, str isn't a wchar_t so WideCharToMultiByte won't work without a conversion of str to a wchar_t array (maybe a pointer)
+        * 
         std::string msg;
         if (utf8Len > 0) {
             msg.resize(utf8Len);
-            WideCharToMultiByte(CP_UTF8, 0, buffer, strm, &msg[0], utf8Len, nullptr, nullptr);
+            WideCharToMultiByte(CP_UTF8, 0, str, str.size(), &msg[0], utf8Len, nullptr, nullptr); 
         }
+        */
 
         // Publish using ZeroMQ publisher if available
         if (m_publisher) {
-            bool published = m_publisher->publish("Dummy1", strm);
+            bool published = m_publisher->publish("Dummy1", str);
             if (published) {
                 MessageBoxW(m_hWnd, L"Message published successfully.", L"Info", MB_OK | MB_ICONINFORMATION);
             }
