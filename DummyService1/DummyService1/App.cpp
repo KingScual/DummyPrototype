@@ -158,6 +158,7 @@ bool App::Initialize(HINSTANCE hInstance, int nCmdShow)
     // Initialize ZeroMQ subscriber to receive messages in background and post to UI
     try {
         // Connect to the same multicast group; subscribe to topics Dummy2 and Dummy3
+        // Connect to Dummy2's PUB socket
         m_subscriber = std::make_unique<ZeroMQSubscriber>("tcp://localhost:5557", std::vector<std::string>{"Dummy2", "Dummy3"}); // subscribe to Dummy2 and Dummy3
         if (m_subscriber->init()) {
             // start receiving; callback will post WM_ZMQ_MESSAGE to UI thread
@@ -181,6 +182,38 @@ bool App::Initialize(HINSTANCE hInstance, int nCmdShow)
         }
         else {
             OutputDebugStringA("ZeroMQ subscriber init failed\n");
+        }
+    }
+    catch (const std::exception& ex) {
+        OutputDebugStringA(ex.what());
+    }
+
+    try {
+        // Connect to the same multicast group; subscribe to topics Dummy2 and Dummy3
+        // Connect to Dummy3's PUB socket
+        m_subscriber2 = std::make_unique<ZeroMQSubscriber>("tcp://localhost:5558", std::vector<std::string>{"Dummy2", "Dummy3"}); // subscribe to Dummy2 and Dummy3
+        if (m_subscriber2->init()) {
+            // start receiving; callback will post WM_ZMQ_MESSAGE to UI thread
+            m_subscriber2->start([this](const std::string& topic, const std::string& message) {
+                // Convert message (UTF-8) to wide string
+                int wlen = MultiByteToWideChar(CP_UTF8, 0, message.c_str(), -1, nullptr, 0);
+                if (wlen > 0) {
+                    wchar_t* wbuf = reinterpret_cast<wchar_t*>(GlobalAlloc(GMEM_FIXED, wlen * sizeof(wchar_t)));
+                    if (wbuf) {
+                        MultiByteToWideChar(CP_UTF8, 0, message.c_str(), -1, wbuf, wlen);
+                        // Post to UI thread; WindowProc will free the buffer
+                        if (m_hWnd) {
+                            PostMessageW(m_hWnd, WM_ZMQ_MESSAGE, 0, reinterpret_cast<LPARAM>(wbuf));
+                        }
+                        else {
+                            GlobalFree(wbuf);
+                        }
+                    }
+                }
+                });
+        }
+        else {
+            OutputDebugStringA("ZeroMQ subscriber2 init failed\n");
         }
     }
     catch (const std::exception& ex) {
@@ -312,20 +345,28 @@ void App::OnButtonClicked()
     const int bufSize = 1024;
     wchar_t buffer[bufSize] = {};
     int len = GetWindowTextW(m_hEdit, buffer, bufSize);
-    //convert message to bitstream
+
+    /*
+    TODO:
+    ---- BITSTREAM FIX: needs edits to not save a NULL after every read-in char, thus only allowing
+    ---- the first character to be displayed when converted to a string, disabling for time being
+        //convert message to bitstream
     auto strm = BitStreamConversion::ToBitStream(buffer);
     if (strm.size() > 0) //as long as there is some data here
+    */
+
+    if(len > 0)
     {
         //MessageBoxW(m_hWnd, buffer, L"Submitted Text", MB_OK | MB_ICONINFORMATION);
-        // 
+                
+        /*
+        * PART OF BITSTREAM FIX
         //convert strm to a string to be used in publish()
         std::string str(strm.begin(), strm.end()); //str is still size 2048 like strm, might require a change to BitStreamConversion
-        
-        
-        // Convert wide char (UTF-16) buffer to UTF-8 std::string for ZeroMQ
-        int utf8Len = WideCharToMultiByte(CP_UTF8, 0, buffer, len, nullptr, 0, nullptr, nullptr);
+        */
         
         /*
+        * PART OF BITSTREAM FIX
         * converting the actual bitstream w/ str, however, str isn't a wchar_t so WideCharToMultiByte won't work without a conversion of str to a wchar_t array (maybe a pointer)
         * 
         std::string msg;
@@ -335,9 +376,19 @@ void App::OnButtonClicked()
         }
         */
 
+        // Convert wide char (UTF-16) buffer to UTF-8 std::string for ZeroMQ
+        int utf8Len = WideCharToMultiByte(CP_UTF8, 0, buffer, len, nullptr, 0, nullptr, nullptr);
+        std::string msg;
+        if (utf8Len > 0) {
+            msg.resize(utf8Len);
+            WideCharToMultiByte(CP_UTF8, 0, buffer, len, &msg[0], utf8Len, nullptr, nullptr);
+        }
         // Publish using ZeroMQ publisher if available
         if (m_publisher) {
-            bool published = m_publisher->publish("Dummy1", str);
+
+            //bool published = m_publisher->publish("Dummy1", str); PART OF BITSTREAM FIX
+            
+            bool published = m_publisher->publish("Dummy1", msg);
             if (published) {
                 MessageBoxW(m_hWnd, L"Message published successfully.", L"Info", MB_OK | MB_ICONINFORMATION);
             }

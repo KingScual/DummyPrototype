@@ -57,4 +57,5 @@ private:
 
     // ZeroMQ subscriber used to receive messages in the background
     std::unique_ptr<ZeroMQSubscriber> m_subscriber;
+    std::unique_ptr<ZeroMQSubscriber> m_subscriber2;
 };
