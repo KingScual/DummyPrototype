@@ -18,15 +18,15 @@
     <ClCompile Include="App.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="ZeroMQ.cpp">
+    <ClCompile Include="..\..\BitStreamConversion\BitStreamConversion.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\ZeroMQ\ZeroMQ.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="App.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="ZeroMQ.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

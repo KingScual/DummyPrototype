@@ -18,10 +18,10 @@
     <ClCompile Include="App.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="ZeroMQ.cpp">
+    <ClCompile Include="..\..\ZeroMQ\ZeroMQ.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="BitStreamConversion.cpp">
+    <ClCompile Include="..\..\BitStreamConversion\BitStreamConversion.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
