@@ -15,18 +15,12 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="App.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\ZeroMQ\ZeroMQ.cpp">
+    <ClCompile Include="Proxy.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="App.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="ZeroMQ.h">
+    <ClInclude Include="Proxy.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

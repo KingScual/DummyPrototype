@@ -1,4 +1,5 @@
 #pragma once
+#pragma once
 
 #include <string>
 #include <memory>
@@ -12,11 +13,12 @@
 #define ZMQ_BUILD_DRAFT_API
 #include <zmq.hpp>
 
+
 class ZeroMQPublisher
 {
 public:
     // bindAddress example: "tcp://*:5556"
-    explicit ZeroMQPublisher(const std::string& bindAddress = "tcp://*:5557");
+    explicit ZeroMQPublisher(const std::string& connectAddress = ""); // empty to be specified upon declaration
     ~ZeroMQPublisher();
 
     // Initialize and bind the publisher socket. Returns true on success.
@@ -30,7 +32,7 @@ public:
     void close();
 
 private:
-    std::string bindAddress_;
+    std::string connectAddress_; // using a proxy to connect, so we don't bind the pub, just connect
     zmq::context_t context_;
     std::unique_ptr<zmq::socket_t> socket_;
     std::mutex mutex_;
@@ -43,7 +45,7 @@ class ZeroMQSubscriber
 public:
     // connectAddress example: "tcp://localhost:5556"
     // topicFilters example: empty vector subscribes to everything, or a list of topics to receive only those
-    explicit ZeroMQSubscriber(const std::string& connectAddress = "tcp://localhost:5558",
+    explicit ZeroMQSubscriber(const std::string& connectAddress = "", // empty to be specified upon declaration
         const std::vector<std::string>& topicFilters = {});
     ~ZeroMQSubscriber();
 

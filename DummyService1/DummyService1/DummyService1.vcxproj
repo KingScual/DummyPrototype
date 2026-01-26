@@ -102,7 +102,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>C:\ZeroMq\vcpkg\installed\x64-windows\bin;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\ZeroMq\vcpkg\installed\x64-windows\bin;C:\DummyPrototype\Proxy\Proxy;C:\DummyPrototype\ZeroMQ;C:\DummyPrototype\BitStreamConversion;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -124,14 +124,12 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\BitStreamConversion\BitStreamConversion.cpp" />
+    <ClCompile Include="..\..\ZeroMQ\ZeroMQ.cpp" />
     <ClCompile Include="App.cpp" />
-    <ClCompile Include="BitStreamConversion.cpp" />
-    <ClCompile Include="ZeroMQ.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="App.h" />
-    <ClInclude Include="BitStreamConversion.h" />
-    <ClInclude Include="ZeroMQ.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
