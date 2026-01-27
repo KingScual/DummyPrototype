@@ -10,6 +10,9 @@
 // Forward declare or include ZeroMQ publisher helper
 #include "ZeroMQ.h"
 
+// Include of Proxy port constants for Pubs/Subs connections
+#include "Proxy.h"
+
 // Simple application class that wraps a Win32 window and a button.
 class App
 {
@@ -57,5 +60,4 @@ private:
 
     // ZeroMQ subscriber used to receive messages in the background
     std::unique_ptr<ZeroMQSubscriber> m_subscriber;
-    std::unique_ptr<ZeroMQSubscriber> m_subscriber2;
 };
