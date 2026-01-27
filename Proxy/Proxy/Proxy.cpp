@@ -20,8 +20,9 @@ int main()
 	zmq_bind(backend, "tcp://*:5558");
 
 	//start the proxy, runs until context is closed
+	std::cout << "Proxy Opened" << std::endl;	
 	zmq_proxy(frontend, backend, NULL);
-
+	
 	return 0;
 
 
