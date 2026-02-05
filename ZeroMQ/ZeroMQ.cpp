@@ -3,10 +3,9 @@
 
 #include "ZeroMQ.h"
 
-#include <iostream>
+
 #include <thread>
 #include <chrono>
-#include <cerrno>
 
 // Constructor
 // - store the connect address since we are using a proxy, create a ZMQ context with one IO thread
@@ -63,38 +62,6 @@ bool ZeroMQPublisher::init()
         std::cerr << "ZeroMQPublisher init error: " << e.what() << "\n";
         socket_.reset();
         initialized_ = false;
-        return false;
-    }
-}
-
-// publish(topic, message)
-// - Ensures the socket is initialized, then sends a multipart message:
-//   first frame = topic, second frame = message
-// - Uses a mutex to make publishing thread-safe
-// - Any ZMQ errors are caught and logged
-bool ZeroMQPublisher::publish(const std::string& topic, const std::string& message)
-{
-    // Ensure socket is initialized
-    if (!initialized_) {
-        if (!init())
-            return false;
-    }
-
-    std::lock_guard<std::mutex> lock(mutex_);
-
-    try {
-        // Send topic as first frame
-        zmq::const_buffer topicBuf(topic.data(), topic.size());
-        socket_->send(topicBuf, zmq::send_flags::sndmore);
-
-        // Send message as second frame
-        zmq::const_buffer msgBuf(message.data(), message.size());
-        socket_->send(msgBuf, zmq::send_flags::none);
-
-        return true;
-    }
-    catch (const zmq::error_t& e) {
-        std::cerr << "ZeroMQPublisher publish error: " << e.what() << "\n";
         return false;
     }
 }
@@ -247,6 +214,16 @@ void ZeroMQSubscriber::close()
 // - Uses the short receive timeout set in init() so it can exit promptly when stop() is called
 void ZeroMQSubscriber::runLoop()
 {
+    /* **** Architecture Context ****
+*
+*  SERVICES SUBSCRIBE TO SPECIFIC MESSAGES, NOT TO OTHER SERVICES
+   i.e. first topic frame is the message being sent to allow us to spell out
+   it's specific data members in the next message afterwards, whether sending scheme is lazy (sending POD) or
+   highly structured (serialized, etc.)
+
+   If we have services subscribing to other services, then we have to send additional
+   data to spell out what the layout of that message was, i.e. another frame sent
+*/
     while (running_.load()) {
         try {
             // Receive topic frame
@@ -256,18 +233,52 @@ void ZeroMQSubscriber::runLoop()
                 // timeout or interrupted, loop back and check running_
                 continue;
             }
-
+            // unpacking the topic / turning bits back into a string
             std::string topic(static_cast<const char*>(topicMsg.data()), topicMsg.size());
 
-            // Receive message frame
+            // Receive payload frame
             zmq::message_t msg;
             auto res2 = socket_->recv(msg, zmq::recv_flags::none);
             if (!res2) {
                 // incomplete message; skip
                 continue;
             }
-
+            // unpacking the string
             std::string message(static_cast<const char*>(msg.data()), msg.size());
+           
+            // based on the topic, select which struct is to be filled, and copy over
+            // from the message sent,(potenitally check for versions here too?)
+            if (topic == "appstatus") {
+                
+                static AppStatus A;
+                std::memcpy(&A, msg.data(), sizeof(AppStatus));
+
+                // print out the data so the user can verify?
+                // we recv a struct and then we "do work", i.e. outputting the member variables
+                // shouldn't this move to the app itself?
+                // i.e. Subscriber recv's a payload and then needs to pass said data to the app ("worker")
+                std::cout << "Sent Message has id: " << A.appId << std::endl;
+                std::cout << "Sent Message has health " << A.appHealth << std::endl;
+                std::cout << "Sent Message has runtime of " << A.appRuntime << std::endl;
+            };
+            if (topic == "appdatarequest1") {
+                
+                static AppDataRequest1 A;
+                std::memcpy(&A, msg.data(), sizeof(AppDataRequest1));
+
+                std::cout << "Sent Message has id " << A.appId << std::endl;
+                std::cout << "Sent Message has health " << A.appHealth << std::endl;
+                std::cout << "Sent Message has number " << A.numberToAdd<< std::endl;
+            };
+            if (topic == "appdatarequest2") {
+                
+                static AppDataRequest2 A;
+                std::memcpy(&A, msg.data(), sizeof(AppDataRequest2));
+
+                std::cout << "Sent Message has id: " << A.appId << std::endl;
+                std::cout << "Sent Message has health " << A.appHealth << std::endl;
+                std::cout << "Sent Message has multiplication of " << A.numberToMultiply<< std::endl;
+            };            
 
             // Invoke callback outside of any locks to avoid deadlocks
             if (callback_) {
@@ -285,3 +296,4 @@ void ZeroMQSubscriber::runLoop()
         }
     }
 }
+

@@ -35,8 +35,20 @@ public:
     // Set text in the receive box (used to receive data from another application).
     void SetReceivedText(const wchar_t* text);
 
+    // Calculates the amount of time the app has been running since initialization
+    double GetAppRunningTime();
+
+    // Take in any object or message struct to publish via ZeroMQ and determine message box text
+    template <typename T>
+    void PublishAndDisplay(const std::string topic, T object);
+
+    // Detemine app health based on app running time
+    std::string DetermineAppHealth();
+
     // Custom Windows message posted when a ZMQ message arrives
     static const UINT WM_ZMQ_MESSAGE = WM_APP + 1;
+
+
 
 private:
     HINSTANCE m_hInstance; // Application instance handle
@@ -44,6 +56,13 @@ private:
     HWND m_hButton;        // Button control handle
     HWND m_hEdit;          // Edit control handle for user text entry
     HWND m_hReceiveEdit;   // Edit control used to display received data
+
+    // data that each App has to be initialized at runtime and requested from other apps
+    const std::string m_appId;
+    std::string m_appHealth;
+    clock_t m_appRuntimeStart;
+    const uint32_t m_numToAdd;
+    const float m_numToMultiply;
 
     static const int BUTTON_ID = 1001; // Identifier for the button control
     static const int EDIT_ID = 1002;   // Identifier for the edit control (not strictly required)
@@ -61,3 +80,5 @@ private:
     // ZeroMQ subscriber used to receive messages in the background
     std::unique_ptr<ZeroMQSubscriber> m_subscriber;
 };
+
+

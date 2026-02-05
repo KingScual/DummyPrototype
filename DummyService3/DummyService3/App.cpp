@@ -5,8 +5,10 @@
 #include "zmq.hpp"
 
 // Constructor: initialize internal handles to null.
+// TODO, initialize all of the personal app information here
 App::App()
-    : m_hInstance(nullptr), m_hWnd(nullptr), m_hButton(nullptr), m_hEdit(nullptr), m_hReceiveEdit(nullptr), m_publisher(nullptr), m_subscriber(nullptr)
+    : m_hInstance(nullptr), m_hWnd(nullptr), m_hButton(nullptr), m_hEdit(nullptr), m_hReceiveEdit(nullptr), m_publisher(nullptr), m_subscriber(nullptr),
+      m_appId("CURLY"), m_appRuntimeStart(NULL), m_numToAdd(50), m_numToMultiply(2)
 {
 }
 
@@ -41,6 +43,10 @@ App::~App()
 bool App::Initialize(HINSTANCE hInstance, int nCmdShow)
 {
     m_hInstance = hInstance;
+
+    // set App health status and get the beginning of app running
+    m_appHealth = "HEALTHY";
+    m_appRuntimeStart = clock();
 
     WNDCLASSEXW wc = {};
     wc.cbSize = sizeof(wc);
@@ -357,4 +363,47 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE /*hPrevInstance*/, PWSTR /*pC
     }
 
     return app.Run();
+}
+
+double App::GetAppRunningTime()
+{
+    clock_t now = clock();
+    double time = double(now - m_appRuntimeStart) / CLOCKS_PER_SEC;
+    return time;
+}
+
+std::string App::DetermineAppHealth() {
+
+    double currentAppRuntime = GetAppRunningTime();
+    if (GetAppRunningTime() < 120.0000000)
+    {
+        m_appHealth = "HEALTHY";
+    }
+    else if (GetAppRunningTime() < 240.000000)
+    {
+        m_appHealth = "IMPACTED";
+    }
+    else if (GetAppRunningTime() < 360.000000)
+    {
+        m_appHealth = "SEVERLY DEGRADED";
+    }
+}
+
+template <typename T>
+void App::PublishAndDisplay(T object) {
+
+    // Publish using ZeroMQ publisher if available
+    if (m_publisher) {
+
+        //bool published = m_publisher->publish("Dummy1", str); PART OF BITSTREAM FIX
+
+        bool published = m_publisher->publish("Dummy1", object);
+        if (published) {
+            MessageBoxW(m_hWnd, L"Message published successfully.", L"Info", MB_OK | MB_ICONINFORMATION);
+        }
+        else {
+            MessageBoxW(m_hWnd, L"Failed to publish message.", L"Error", MB_OK | MB_ICONERROR);
+        }
+    }
+
 }

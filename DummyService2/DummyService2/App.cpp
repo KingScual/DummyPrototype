@@ -2,11 +2,15 @@
 
 #include <cwchar>
 #include <string>
+#include <chrono>
+#include "Messages.h"
 #include "zmq.hpp"
 
 // Constructor: initialize internal handles to null.
+// TODO, initialize all of the personal app information here
 App::App()
-    : m_hInstance(nullptr), m_hWnd(nullptr), m_hButton(nullptr), m_hEdit(nullptr), m_hReceiveEdit(nullptr), m_publisher(nullptr), m_subscriber(nullptr)
+    : m_hInstance(nullptr), m_hWnd(nullptr), m_hButton(nullptr), m_hEdit(nullptr), m_hReceiveEdit(nullptr), m_publisher(nullptr), m_subscriber(nullptr),
+      m_appId("MOE"), m_appRuntimeStart(NULL), m_numToAdd(25), m_numToMultiply(10)
 {
 }
 
@@ -41,6 +45,10 @@ App::~App()
 bool App::Initialize(HINSTANCE hInstance, int nCmdShow)
 {
     m_hInstance = hInstance;
+
+    // set App health status and get the beginning of app running
+    m_appHealth = "HEALTHY";
+    m_appRuntimeStart = clock();
 
     WNDCLASSEXW wc = {};
     wc.cbSize = sizeof(wc);
@@ -155,8 +163,8 @@ bool App::Initialize(HINSTANCE hInstance, int nCmdShow)
 
     // Initialize ZeroMQ subscriber to connect to the proxy backend socket for messages in background and post to UI
     try {
-        // Connect to the same multicast group; subscribe to topics Dummy1 and Dummy3
-        m_subscriber = std::make_unique<ZeroMQSubscriber>(PROXYBACKEND, std::vector<std::string>{"Dummy1", "Dummy3"}); // subscribe to Dummy1 and Dummy3
+        // Connect to the same multicast group; subscribe to messages specified by user
+        m_subscriber = std::make_unique<ZeroMQSubscriber>(PROXYBACKEND, std::vector<std::string>{"appstatus", "appdatarequest1","appdatarequest2"}); // subscribe to Dummy1 and Dummy3
         if (m_subscriber->init()) {
             // start receiving; callback will post WM_ZMQ_MESSAGE to UI thread
             m_subscriber->start([this](const std::string& topic, const std::string& message) {
@@ -262,7 +270,7 @@ LRESULT CALLBACK App::WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPa
         PAINTSTRUCT ps;
         HDC hdc = BeginPaint(hWnd, &ps);
         // Draw the label above the top edit control
-        const wchar_t* text = L"Enter text below and press Submit";
+        const wchar_t* text = L"Messages to send are appstatus, appdatarequest1, or appdatarequest2. Enter below and press Submit";
         TextOutW(hdc, 10, 12, text, static_cast<int>(std::wcslen(text)));
 
         // Draw a label above the receive-only edit control at the bottom
@@ -290,7 +298,17 @@ LRESULT CALLBACK App::WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPa
             wchar_t* incoming = reinterpret_cast<wchar_t*>(lParam);
             if (incoming)
             {
-                pThis->SetReceivedText(incoming);
+                //pThis->SetReceivedText(incoming);
+                //for right now, just say that a message was recieved, already outputting from ZeroMQ.cpp
+
+                // convert from string to wchar_t*
+                std::string rcv = "Message Received";
+                int size = MultiByteToWideChar(CP_UTF8, 0, rcv.c_str(), -1, nullptr, 0);
+                std::wstring ws(size, 0);
+                MultiByteToWideChar(CP_UTF8, 0, rcv.c_str(), -1, &ws[0], size);
+                const wchar_t* w = ws.c_str();
+
+                pThis->SetReceivedText(w);
                 GlobalFree(incoming);
             }
         }
@@ -310,26 +328,51 @@ void App::OnButtonClicked()
     const int bufSize = 1024;
     wchar_t buffer[bufSize] = {};
     int len = GetWindowTextW(m_hEdit, buffer, bufSize);
-    if (len > 0)
-    {
-        //MessageBoxW(m_hWnd, buffer, L"Submitted Text", MB_OK | MB_ICONINFORMATION);
+    if (len > 0) {
 
         // Convert wide char (UTF-16) buffer to UTF-8 std::string for ZeroMQ
         int utf8Len = WideCharToMultiByte(CP_UTF8, 0, buffer, len, nullptr, 0, nullptr, nullptr);
         std::string msg;
+        std::string pubTopic;
         if (utf8Len > 0) {
             msg.resize(utf8Len);
             WideCharToMultiByte(CP_UTF8, 0, buffer, len, &msg[0], utf8Len, nullptr, nullptr);
-        }
 
-        // Publish using ZeroMQ publisher if available
-        if (m_publisher) {
-            bool published = m_publisher->publish("Dummy2", msg);
-            if (published) {
-                MessageBoxW(m_hWnd, L"Message published successfully.", L"Info", MB_OK | MB_ICONINFORMATION);
+            // Determine the payload to publish based on user input
+            // this could be a function
+            if (msg == "status") {
+
+                AppStatus appStatus;
+
+                appStatus.appId = m_appId;
+                appStatus.appHealth = DetermineAppHealth();
+                appStatus.appRuntime = GetAppRunningTime();
+
+                PublishAndDisplay(msg, &appStatus);
             }
-            else {
-                MessageBoxW(m_hWnd, L"Failed to publish message.", L"Error", MB_OK | MB_ICONERROR);
+            else if (msg == "data request 1") {
+
+                AppDataRequest1 additionRequest;
+
+                additionRequest.appId = m_appId;
+                additionRequest.appHealth = DetermineAppHealth();
+                additionRequest.numberToAdd = m_numToAdd;
+
+                PublishAndDisplay(msg, &additionRequest);
+            }
+            else if (msg == "data request 2") {
+
+                AppDataRequest2 multiplicationRequest;
+
+                multiplicationRequest.appId = m_appId;
+                multiplicationRequest.appHealth = DetermineAppHealth();
+                multiplicationRequest.numberToMultiply = m_numToMultiply;
+
+                PublishAndDisplay(msg, &multiplicationRequest);
+            }
+            else
+            {
+                MessageBoxW(m_hWnd, L"Please enter the correct text from above.", L"Error", MB_OK | MB_ICONERROR);
             }
         }
     }
@@ -337,7 +380,6 @@ void App::OnButtonClicked()
     {
         MessageBoxW(m_hWnd, L"No text entered.", L"Info", MB_OK | MB_ICONINFORMATION);
     }
-
 }
 
 // SetReceivedText: set the text shown in the receive-only edit control (used by other apps to send data).
@@ -357,3 +399,49 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE /*hPrevInstance*/, PWSTR /*pC
 
     return app.Run();
 }
+
+double App::GetAppRunningTime()
+{
+    clock_t now = clock();
+    double time = double(now - m_appRuntimeStart) / CLOCKS_PER_SEC;
+    return time;
+}
+
+template <typename T>
+void App::PublishAndDisplay(const std::string topic, T object) {
+
+    // Publish using ZeroMQ publisher if available
+    if (m_publisher) {
+
+        //bool published = m_publisher->publish("Dummy1", str); PART OF BITSTREAM FIX
+
+        bool published = m_publisher->publish(topic, object);
+        if (published) {
+            MessageBoxW(m_hWnd, L"Message published successfully.", L"Info", MB_OK | MB_ICONINFORMATION);
+        }
+        else {
+            MessageBoxW(m_hWnd, L"Failed to publish message.", L"Error", MB_OK | MB_ICONERROR);
+        }
+    }
+
+}
+
+std::string App::DetermineAppHealth() {
+
+    double currentAppRuntime = GetAppRunningTime();
+    if (GetAppRunningTime() < 120.0000000)
+    {
+        m_appHealth = "HEALTHY";
+    }
+    else if (GetAppRunningTime() < 240.000000)
+    {
+        m_appHealth = "IMPACTED";
+    }
+    else if (GetAppRunningTime() < 360.000000)
+    {
+        m_appHealth = "SEVERLY DEGRADED";
+    }
+
+    return m_appHealth;
+}
+
