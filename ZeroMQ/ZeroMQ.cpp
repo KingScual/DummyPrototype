@@ -245,40 +245,7 @@ void ZeroMQSubscriber::runLoop()
             }
             // unpacking the string
             std::string message(static_cast<const char*>(msg.data()), msg.size());
-           
-            // based on the topic, select which struct is to be filled, and copy over
-            // from the message sent,(potenitally check for versions here too?)
-            if (topic == "appstatus") {
-                
-                static AppStatus A;
-                std::memcpy(&A, msg.data(), sizeof(AppStatus));
-
-                // print out the data so the user can verify?
-                // we recv a struct and then we "do work", i.e. outputting the member variables
-                // shouldn't this move to the app itself?
-                // i.e. Subscriber recv's a payload and then needs to pass said data to the app ("worker")
-                std::cout << "Sent Message has id: " << A.appId << std::endl;
-                std::cout << "Sent Message has health " << A.appHealth << std::endl;
-                std::cout << "Sent Message has runtime of " << A.appRuntime << std::endl;
-            };
-            if (topic == "appdatarequest1") {
-                
-                static AppDataRequest1 A;
-                std::memcpy(&A, msg.data(), sizeof(AppDataRequest1));
-
-                std::cout << "Sent Message has id " << A.appId << std::endl;
-                std::cout << "Sent Message has health " << A.appHealth << std::endl;
-                std::cout << "Sent Message has number " << A.numberToAdd<< std::endl;
-            };
-            if (topic == "appdatarequest2") {
-                
-                static AppDataRequest2 A;
-                std::memcpy(&A, msg.data(), sizeof(AppDataRequest2));
-
-                std::cout << "Sent Message has id: " << A.appId << std::endl;
-                std::cout << "Sent Message has health " << A.appHealth << std::endl;
-                std::cout << "Sent Message has multiplication of " << A.numberToMultiply<< std::endl;
-            };            
+                      
 
             // Invoke callback outside of any locks to avoid deadlocks
             if (callback_) {

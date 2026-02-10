@@ -340,32 +340,32 @@ void App::OnButtonClicked()
 
             // Determine the payload to publish based on user input
             // this could be a function
-            if (msg == "status") {
+            if (msg == "appstatus") {
 
                 AppStatus appStatus;
 
-                appStatus.appId = m_appId;
-                appStatus.appHealth = DetermineAppHealth();
+                //appStatus.appId = m_appId;
+                //appStatus.appHealth = DetermineAppHealth();
                 appStatus.appRuntime = GetAppRunningTime();
 
                 PublishAndDisplay(msg, &appStatus);
             }
-            else if (msg == "data request 1") {
+            else if (msg == "appdatarequest 1") {
 
                 AppDataRequest1 additionRequest;
 
-                additionRequest.appId = m_appId;
-                additionRequest.appHealth = DetermineAppHealth();
+                //additionRequest.appId = m_appId;
+                //additionRequest.appHealth = DetermineAppHealth();
                 additionRequest.numberToAdd = m_numToAdd;
 
                 PublishAndDisplay(msg, &additionRequest);
             }
-            else if (msg == "data request 2") {
+            else if (msg == "appdatarequest2") {
 
                 AppDataRequest2 multiplicationRequest;
 
-                multiplicationRequest.appId = m_appId;
-                multiplicationRequest.appHealth = DetermineAppHealth();
+                //multiplicationRequest.appId = m_appId;
+                //multiplicationRequest.appHealth = DetermineAppHealth();
                 multiplicationRequest.numberToMultiply = m_numToMultiply;
 
                 PublishAndDisplay(msg, &multiplicationRequest);

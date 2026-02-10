@@ -10,8 +10,18 @@
 // Constructor: initialize internal handles to null.
 // TODO, initialize all of the personal app information here
 App::App()
-    : m_hInstance(nullptr), m_hWnd(nullptr), m_hButton(nullptr), m_hEdit(nullptr), m_hReceiveEdit(nullptr), m_publisher(nullptr), m_subscriber(nullptr),
-    m_appId("LARRY"), m_appRuntimeStart(NULL), m_numToAdd(100), m_numToMultiply(4.5)
+    : m_hInstance(nullptr), 
+    m_hWnd(nullptr), 
+    m_hButton(nullptr), 
+    m_hEdit(nullptr), 
+    m_hReceiveEdit(nullptr), 
+    outputThread_(),
+    m_publisher(nullptr), 
+    m_subscriber(nullptr),
+    m_appId("LARRY"), 
+    m_appRuntimeStart(NULL), 
+    m_numToAdd(100), 
+    m_numToMultiply(4.5)
 {
 }
 
@@ -37,6 +47,17 @@ App::~App()
         UnregisterClassW(m_windowClassName, m_hInstance);
         m_hInstance = nullptr;
     }
+    // close the background thread
+    bool expected = true;
+    if (!running_.compare_exchange_strong(expected, false))
+        return;
+
+    if(outputThread_.joinable())
+    {
+        running_ = false;
+        outCv_.notify_one();
+        outputThread_.join();
+    }
 
     // m_publisher will be cleaned up automatically (its destructor calls close())
 }
@@ -46,10 +67,10 @@ App::~App()
 bool App::Initialize(HINSTANCE hInstance, int nCmdShow)
 {
     m_hInstance = hInstance;
-
     // set App health status and get the beginning of app running
     m_appHealth = "HEALTHY";
     m_appRuntimeStart = clock();
+    running_ = true;
 
     WNDCLASSEXW wc = {};
     wc.cbSize = sizeof(wc);
@@ -166,12 +187,18 @@ bool App::Initialize(HINSTANCE hInstance, int nCmdShow)
 
     // Initialize ZeroMQ subscriber to connect to the proxy backend socket for messages in background and post to UI
     try {
-        // Connect to the same multicast group; subscribe to topics Dummy2 and Dummy3
-        m_subscriber = std::make_unique<ZeroMQSubscriber>(PROXYBACKEND, std::vector<std::string>{"appstatus", "appdatarequest1", "appdatarequest2"}); // subscribe to Dummy2 and Dummy3
+        // Connect to the same multicast group; subscribe to all work topics and response topics from Dummy2 and Dummy3
+        m_subscriber = std::make_unique<ZeroMQSubscriber>(PROXYBACKEND, std::vector<std::string>{
+            "appstatus", 
+            "appdatarequest1", 
+            "appdatarequest2",
+            "dummyService2",
+            "dummyService3"}); // subscribe to Dummy2 and Dummy3
         if (m_subscriber->init()) {
             // start receiving; callback will post WM_ZMQ_MESSAGE to UI thread
             m_subscriber->start([this](const std::string& topic, const std::string& message) {
                 // Convert message (UTF-8) to wide string
+                // checking that we have data
                 int wlen = MultiByteToWideChar(CP_UTF8, 0, message.c_str(), -1, nullptr, 0);
                 if (wlen > 0) {
                     wchar_t* wbuf = reinterpret_cast<wchar_t*>(GlobalAlloc(GMEM_FIXED, wlen * sizeof(wchar_t)));
@@ -203,6 +230,9 @@ bool App::Initialize(HINSTANCE hInstance, int nCmdShow)
 int App::Run()
 {
     MSG msg;
+    outputThread_ = std::thread(&App::OutputThread, this);
+    CreateConsoleWindow();
+
     while (GetMessageW(&msg, nullptr, 0, 0) > 0)
     {
         TranslateMessage(&msg);
@@ -298,9 +328,12 @@ LRESULT CALLBACK App::WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPa
         App* pThis = reinterpret_cast<App*>(GetWindowLongPtrW(hWnd, GWLP_USERDATA));
         if (pThis)
         {
-            wchar_t* incoming = reinterpret_cast<wchar_t*>(lParam);
+            // incoming is the payload, can manipulated here
+            wchar_t* incoming = reinterpret_cast<wchar_t*>(lParam); // can this just be a string
+            
             if (incoming)
             {
+                pThis->DoWork(incoming);
                 //pThis->SetReceivedText(incoming);
                 //for right now, just say that a message was recieved, already outputting from ZeroMQ.cpp
                 
@@ -310,9 +343,10 @@ LRESULT CALLBACK App::WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPa
                 std::wstring ws(size, 0);
                 MultiByteToWideChar(CP_UTF8, 0, rcv.c_str(), -1, &ws[0], size);
                 const wchar_t* w = ws.c_str();
-
+                // let user know that we recieved something
                 pThis->SetReceivedText(w);
 
+               
                 GlobalFree(incoming);
             }
         }
@@ -334,15 +368,7 @@ void App::OnButtonClicked()
     wchar_t buffer[bufSize] = {};
     int len = GetWindowTextW(m_hEdit, buffer, bufSize);
 
-    /*
-    TODO:
-    ---- BITSTREAM FIX: needs edits to not save a NULL after every read-in char, thus only allowing
-    ---- the first character to be displayed when converted to a string, disabling for time being
-        //convert message to bitstream
-    auto strm = BitStreamConversion::ToBitStream(buffer);
-    if (strm.size() > 0) //as long as there is some data here
-    */       
-
+   
     if(len > 0){    
         
         // Convert wide char (UTF-16) buffer to UTF-8 std::string for ZeroMQ
@@ -354,32 +380,33 @@ void App::OnButtonClicked()
 
             // Determine the payload to publish based on user input
             // this could be a function
+            // MAKE THIS A REQUEST FOR DATA
             if (msg == "appstatus"){
                 
                 AppStatus appStatus;
 
-                appStatus.appId = m_appId;
-                appStatus.appHealth = DetermineAppHealth();
+                //appStatus.appId = m_appId;
+                //appStatus.appHealth = DetermineAppHealth();
                 appStatus.appRuntime = GetAppRunningTime();
 
                 PublishAndDisplay(msg , &appStatus);
             }
-            else if (msg == "datarequest1"){
+            else if (msg == "appdatarequest1"){
             
                 AppDataRequest1 additionRequest;
 
-                additionRequest.appId = m_appId;
-                additionRequest.appHealth = DetermineAppHealth();
+                //additionRequest.appId = m_appId;
+                //additionRequest.appHealth = DetermineAppHealth();
                 additionRequest.numberToAdd = m_numToAdd;
 
                 PublishAndDisplay(msg, &additionRequest);
             }
-            else if (msg == "datarequest2"){
+            else if (msg == "appdatarequest2"){
             
                 AppDataRequest2 multiplicationRequest;
 
-                multiplicationRequest.appId = m_appId;                
-                multiplicationRequest.appHealth = DetermineAppHealth();
+                //multiplicationRequest.appId = m_appId;                
+                //multiplicationRequest.appHealth = DetermineAppHealth();
                 multiplicationRequest.numberToMultiply = m_numToMultiply;
 
                 PublishAndDisplay(msg, &multiplicationRequest);
@@ -461,3 +488,116 @@ std::string App::DetermineAppHealth() {
     return m_appHealth;
 }
 ;
+
+ void App::DoWork(const wchar_t* text)
+{
+    //take in a topic from the sub'r, determine what to do 1. cout the ack from the recv'ing services repsonse, 2.publish a struct based on request and cout
+    //publish a response from the app with the appname and the requested data
+    // 
+     //convert text to a string for simplicity
+     int size = WideCharToMultiByte(CP_UTF8, 0, text, -1, nullptr, 0, nullptr, nullptr);
+     std::string topic = {};
+     WideCharToMultiByte(CP_UTF8, 0, text, -1, &topic[0], size, nullptr, nullptr);
+
+    
+
+    // based on the topic, select which struct is to be filled and sent over
+    // if the repsonse topic is the other dummy services, do nothing but cout the object they sent
+    // publish back with dummy1
+     std::string responseTopic = "dummyService1";
+     std::string output = {};
+
+    if (topic == "appstatus") {
+
+        AppStatus A;
+        //std::memcpy(&A, msg.data(), sizeof(AppStatus));
+
+        A.appRuntime = GetAppRunningTime();
+        PublishAndDisplay(responseTopic, &A);
+        // print out the data so the user can verify?
+        // we recv a struct and then we "do work", i.e. outputting the member variables
+        // shouldn't this move to the app itself?
+        // i.e. Subscriber recv's a payload and then needs to pass said data to the app ("worker")
+        //std::cout << "Sent Message has id: " << A.appId << std::endl;
+        //std::cout << "Sent Message has health " << A.appHealth << std::endl;
+        output = "Sent Message has runtime of " + std::to_string(A.appRuntime);
+    }
+    else if (topic == "appdatarequest1") {
+
+        AppDataRequest1 A;
+        //std::memcpy(&A, msg.data(), sizeof(AppDataRequest1));
+        A.numberToAdd = m_numToAdd;
+        PublishAndDisplay(responseTopic, &A);
+        //std::cout << "Sent Message has id " << A.appId << std::endl;
+        //std::cout << "Sent Message has health " << A.appHealth << std::endl;
+        output = "Sent Message has number " + std::to_string(A.numberToAdd);
+    }
+    else if (topic == "appdatarequest2") {
+
+        AppDataRequest2 A;
+        //std::memcpy(&A, msg.data(), sizeof(AppDataRequest2));
+
+        A.numberToMultiply = m_numToMultiply;
+        PublishAndDisplay(responseTopic, &A);
+        //std::cout << "Sent Message has id: " << A.appId << std::endl;
+        //std::cout << "Sent Message has health " << A.appHealth << std::endl;
+        output = "Sent Message has multiplication of " + std::to_string(A.numberToMultiply);
+        
+    }
+    AsyncPrint(output);
+
+    // if the rec'd message from publisher was a response topic, just cout and don't publish
+    // is it okay to have a duplicate here? because 1 is subscribed to a message that 1 also sends (because we
+    // request it from 2 and 3, 1's sub'r will also report it's own data to be cout'ed
+    // it is okay in this case b/c our Messages are quite vague for the sake of demonstration
+
+    if (topic == "dummyService1") {
+        //cout dummyService 1's stuff
+    };
+    if (topic == "dummyService2") {
+        //cout dummyService 2's stuff
+    };
+    if (topic == "dummyService3") {
+        //cout dummyService 3's stuff
+    };
+
+
+   
+    
+ 
+}
+
+ void App::OutputThread() {
+
+     while (running_) {
+         std::unique_lock <std::mutex> lock(outMutex_);
+         outCv_.wait(lock, [this] {return !outQueue_.empty() || !running_; });
+
+         while (!outQueue_.empty()) {
+             std::cout << outQueue_.front() << std::endl;
+             outQueue_.pop();
+         }
+     }
+
+ }
+
+ void App::AsyncPrint(const std::string& msg) {
+     {
+         std::lock_guard <std::mutex> lock(outMutex_);
+         outQueue_.push(msg);
+     }
+     outCv_.notify_one();
+ }
+
+ void App::CreateConsoleWindow() {
+
+     AllocConsole();
+     FILE* fp = nullptr;
+     freopen_s(&fp, "CONOUT$", "w", stdout);
+     freopen_s(&fp, "CONOUT$", "w",stderr);
+     freopen_s(&fp, "CONIN$", "r", stdin);
+
+     std::ios::sync_with_stdio(true);
+
+ }
+
