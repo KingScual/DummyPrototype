@@ -155,7 +155,7 @@ bool ZeroMQSubscriber::init()
 
 // start()
 // - Starts a background thread that receives messages and invokes the callback
-void ZeroMQSubscriber::start(std::function<void(const std::string&, const std::string&)> callback)
+void ZeroMQSubscriber::start(std::function<void(const std::string&, void *)> callback)
 {
     if (!callback)
         return;
@@ -243,13 +243,12 @@ void ZeroMQSubscriber::runLoop()
                 // incomplete message; skip
                 continue;
             }
-            // unpacking the string
-            std::string message(static_cast<const char*>(msg.data()), msg.size());
-                      
+            // HOW DO I GIVE THE PAYLOAD DATA TO THE APP?
+            // THIS NEEDS TO BE FIXED        
 
-            // Invoke callback outside of any locks to avoid deadlocks
+            // Invoke callback outside of any locks to avoid deadlocks, pulls me out of loop
             if (callback_) {
-                callback_(topic, message);
+                callback_(topic, msg.data());
             }
         }
         catch (const zmq::error_t& e) {

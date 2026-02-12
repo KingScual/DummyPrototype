@@ -36,29 +36,29 @@ public:
     // Static window procedure used by the Win32 API to dispatch messages to the App instance.
     static LRESULT CALLBACK WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 
-    // Do whatever arbitrary work based on the message recieved.
-    // MIGHT NEED TO BE CHANGED TO A STRING
+    // Output to the window that something was sent
     void SetReceivedText(const wchar_t* text);
 
-    void DoWork(const wchar_t* text);
+    // take in either a request Topic or a reply Topic and perform specific work 
+    void DoWork(const std::string topic);
 
     // Calculates the amount of time the app has been running since initialization
     double GetAppRunningTime();
 
-    // Take in any object or message struct to publish via ZeroMQ and determine message box text
+    // Take in any object or message struct to publish via ZeroMQ and output  box text
     template <typename T>
     void PublishAndDisplay(const std::string topic, T object);
 
-    // Detemine app health based on app running time
+    // Determine app health based on app running time
     std::string DetermineAppHealth();
 
-    // Takes enque'd messages off the queue and outputs them
+    // Takes enque'd cout messages off the queue and outputs them to console
     void OutputThread();
 
-    // Method for putting ostream messages onto the queue
+    // Method for putting cout messages onto the queue
     void AsyncPrint(const std::string& msg);
 
-    // Creates a console window that the background thread can write into
+    // Creates a console window that the background output message thread can write into
     void CreateConsoleWindow();
 
     // Custom Windows message posted when a ZMQ message arrives
@@ -83,6 +83,12 @@ private:
     clock_t m_appRuntimeStart;
     const uint32_t m_numToAdd;
     const float m_numToMultiply;
+
+    // place to save the sent topic / payload combo from PUB'R and SUB'R in ZeroMQ lib
+    std::string m_topic;
+    void* m_payload;
+    // saves off the context of the reponse asked for to determine what message to build in the asking app
+    std::string m_reponseContext;
 
     static const int BUTTON_ID = 1001; // Identifier for the button control
     static const int EDIT_ID = 1002;   // Identifier for the edit control (not strictly required)

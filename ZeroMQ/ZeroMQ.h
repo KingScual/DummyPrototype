@@ -57,7 +57,8 @@ public:
     bool init();
 
     // Start background receiving. The callback will be invoked for each message as (topic, message).
-    void start(std::function<void(const std::string&, const std::string&)> callback);
+    // Ideally, message is just raw data
+    void start(std::function<void(const std::string&, void *)> callback);
 
     // Stop receiving and join the background thread.
     void stop();
@@ -75,7 +76,7 @@ private:
     std::mutex mutex_;
     bool initialized_;
 
-    std::function<void(const std::string&, const std::string&)> callback_;
+    std::function<void(const std::string&, void *)> callback_;
     std::thread thread_;
     std::atomic<bool> running_;
 };

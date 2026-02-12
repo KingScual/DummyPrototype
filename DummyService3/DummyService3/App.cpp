@@ -2,13 +2,28 @@
 
 #include <cwchar>
 #include <string>
+#include <chrono>
+#include "Messages.h"
 #include "zmq.hpp"
 
 // Constructor: initialize internal handles to null.
 // TODO, initialize all of the personal app information here
 App::App()
-    : m_hInstance(nullptr), m_hWnd(nullptr), m_hButton(nullptr), m_hEdit(nullptr), m_hReceiveEdit(nullptr), m_publisher(nullptr), m_subscriber(nullptr),
-      m_appId("CURLY"), m_appRuntimeStart(NULL), m_numToAdd(50), m_numToMultiply(2)
+    : m_hInstance(nullptr), 
+    m_hWnd(nullptr), 
+    m_hButton(nullptr), 
+    m_hEdit(nullptr), 
+    m_hReceiveEdit(nullptr), 
+    outputThread_(),
+    m_publisher(nullptr), 
+    m_subscriber(nullptr),
+    m_appId("CURLY"), 
+    m_appRuntimeStart(NULL), 
+    m_numToAdd(300), 
+    m_numToMultiply(3.14),
+    m_topic(""),
+    m_payload(nullptr),
+    m_reponseContext("")
 {
 }
 
@@ -34,6 +49,17 @@ App::~App()
         UnregisterClassW(m_windowClassName, m_hInstance);
         m_hInstance = nullptr;
     }
+    // close the background thread
+    bool expected = true;
+    if (!running_.compare_exchange_strong(expected, false))
+        return;
+
+    if(outputThread_.joinable())
+    {
+        running_ = false;
+        outCv_.notify_one();
+        outputThread_.join();
+    }
 
     // m_publisher will be cleaned up automatically (its destructor calls close())
 }
@@ -47,6 +73,7 @@ bool App::Initialize(HINSTANCE hInstance, int nCmdShow)
     // set App health status and get the beginning of app running
     m_appHealth = "HEALTHY";
     m_appRuntimeStart = clock();
+    running_ = true;
 
     WNDCLASSEXW wc = {};
     wc.cbSize = sizeof(wc);
@@ -162,27 +189,13 @@ bool App::Initialize(HINSTANCE hInstance, int nCmdShow)
 
     // Initialize ZeroMQ subscriber to connect to the proxy backend socket for messages in background and post to UI
     try {
-        // Connect to the same multicast group; subscribe to topics Dummy1 and Dummy2
-        m_subscriber = std::make_unique<ZeroMQSubscriber>(PROXYBACKEND, std::vector<std::string>{"Dummy1", "Dummy2"}); // subscribe to Dummy1 and Dummy2
-        if (m_subscriber->init()) {
-            // start receiving; callback will post WM_ZMQ_MESSAGE to UI thread
-            m_subscriber->start([this](const std::string& topic, const std::string& message) {
-                // Convert message (UTF-8) to wide string
-                int wlen = MultiByteToWideChar(CP_UTF8, 0, message.c_str(), -1, nullptr, 0);
-                if (wlen > 0) {
-                    wchar_t* wbuf = reinterpret_cast<wchar_t*>(GlobalAlloc(GMEM_FIXED, wlen * sizeof(wchar_t)));
-                    if (wbuf) {
-                        MultiByteToWideChar(CP_UTF8, 0, message.c_str(), -1, wbuf, wlen);
-                        // Post to UI thread; WindowProc will free the buffer
-                        if (m_hWnd) {
-                            PostMessageW(m_hWnd, WM_ZMQ_MESSAGE, 0, reinterpret_cast<LPARAM>(wbuf));
-                        }
-                        else {
-                            GlobalFree(wbuf);
-                        }
-                    }
-                }
-                });
+        // Connect to the same multicast group; subscribe to all work topics and response topics from Dummy2 and Dummy3
+        m_subscriber = std::make_unique<ZeroMQSubscriber>(PROXYBACKEND, std::vector<std::string>{
+            "dummyServicesStatusRequest",
+            "dummyServicesAdditionRequest",
+            "dummyServicesMultiplicationRequest"}); // subscribe to Dummy1
+        if (!m_subscriber->init()) {
+            return false;
         }
         else {
             OutputDebugStringA("ZeroMQ subscriber init failed\n");
@@ -196,9 +209,32 @@ bool App::Initialize(HINSTANCE hInstance, int nCmdShow)
 }
 
 // Run: main message loop. Processes messages until WM_QUIT is received and returns exit code.
+// Start the background console display thread. 
+// Start the background subscriber loop.
 int App::Run()
 {
     MSG msg;
+    outputThread_ = std::thread(&App::OutputThread, this);
+
+    CreateConsoleWindow();
+    // start receiving; callback will post WM_ZMQ_MESSAGE to UI thread
+    // if loop breaks from sent message, save off topic/payload and send Windows API call 
+    m_subscriber->start([this](const std::string& topic, void* message)
+        {
+            m_topic = topic;
+            m_payload = message;
+
+            if (m_hWnd) {
+                // LPARAM might lose data
+                //PostMessageW(m_hWnd, WM_ZMQ_MESSAGE, 0, reinterpret_cast<LPARAM>(message));
+                // version to not use LPARAM AND WPARAM for the sake of not losing data
+                PostMessageW(m_hWnd, WM_ZMQ_MESSAGE, 0, 0);
+            }
+            else {
+                GlobalFree(message);
+            }
+
+        });
     while (GetMessageW(&msg, nullptr, 0, 0) > 0)
     {
         TranslateMessage(&msg);
@@ -269,7 +305,7 @@ LRESULT CALLBACK App::WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPa
         PAINTSTRUCT ps;
         HDC hdc = BeginPaint(hWnd, &ps);
         // Draw the label above the top edit control
-        const wchar_t* text = L"Enter text below and press Submit";
+        const wchar_t* text = L"DUMMY3 ONLY LISTENS FOR MESSAGES, DO NOT SUMBIT";
         TextOutW(hdc, 10, 12, text, static_cast<int>(std::wcslen(text)));
 
         // Draw a label above the receive-only edit control at the bottom
@@ -291,15 +327,17 @@ LRESULT CALLBACK App::WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPa
     // Handle ZMQ message posted from receiver thread
     if (uMsg == WM_ZMQ_MESSAGE)
     {
+        // get app instance, do work on recv'd topic 
         App* pThis = reinterpret_cast<App*>(GetWindowLongPtrW(hWnd, GWLP_USERDATA));
         if (pThis)
-        {
-            wchar_t* incoming = reinterpret_cast<wchar_t*>(lParam);
-            if (incoming)
-            {
-                pThis->SetReceivedText(incoming);
-                GlobalFree(incoming);
-            }
+        {        
+            pThis->DoWork(pThis->m_topic);
+            
+            // output to the window that we got something
+            const wchar_t* w = L"Message Received";
+            pThis->SetReceivedText(w);
+            
+            //GlobalFree(pThis->m_payload);
         }
         return 0;
     }
@@ -309,34 +347,37 @@ LRESULT CALLBACK App::WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPa
 
 // OnButtonClicked: invoked when the button is clicked. Reads text from the edit control and
 // displays it in a message box.
+// process the buffer to determine what message to send
 void App::OnButtonClicked()
-{
+{ /*
     if (!m_hEdit)
         return;
 
     const int bufSize = 1024;
     wchar_t buffer[bufSize] = {};
     int len = GetWindowTextW(m_hEdit, buffer, bufSize);
-    if (len > 0)
-    {
-        //MessageBoxW(m_hWnd, buffer, L"Submitted Text", MB_OK | MB_ICONINFORMATION);
-
+    if(len > 0){
+        
         // Convert wide char (UTF-16) buffer to UTF-8 std::string for ZeroMQ
         int utf8Len = WideCharToMultiByte(CP_UTF8, 0, buffer, len, nullptr, 0, nullptr, nullptr);
         std::string msg;
         if (utf8Len > 0) {
             msg.resize(utf8Len);
             WideCharToMultiByte(CP_UTF8, 0, buffer, len, &msg[0], utf8Len, nullptr, nullptr);
-        }
-
-        // Publish using ZeroMQ publisher if available
-        if (m_publisher) {
-            bool published = m_publisher->publish("Dummy3", msg);
-            if (published) {
-                MessageBoxW(m_hWnd, L"Message published successfully.", L"Info", MB_OK | MB_ICONINFORMATION);
+            // User decides what message they'd like to request, payload is empty in this case.           
+            if (msg == "appStatus" ||
+                msg == "appDataRequest1" ||
+                msg == "appDataRequest2")
+            {
+                // remember what the nature of our request is for filtering replies
+                m_reponseContext = msg;
+                // this might break zeromq::publish() since payload is empty?
+                PublishAndDisplay(msg, "");
+                
             }
-            else {
-                MessageBoxW(m_hWnd, L"Failed to publish message.", L"Error", MB_OK | MB_ICONERROR);
+            else
+            {
+                MessageBoxW(m_hWnd, L"Please enter the correct text from above.", L"Error", MB_OK | MB_ICONERROR);
             }
         }
     }
@@ -344,7 +385,9 @@ void App::OnButtonClicked()
     {
         MessageBoxW(m_hWnd, L"No text entered.", L"Info", MB_OK | MB_ICONINFORMATION);
     }
+    */
 
+    //PURPOSELY DO NOTHING FOR THE TIME BEING
 }
 
 // SetReceivedText: set the text shown in the receive-only edit control (used by other apps to send data).
@@ -357,6 +400,7 @@ void App::SetReceivedText(const wchar_t* text)
 int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE /*hPrevInstance*/, PWSTR /*pCmdLine*/, int nCmdShow)
 {
     App app;
+
     if (!app.Initialize(hInstance, nCmdShow))
     {
         return -1;
@@ -372,6 +416,22 @@ double App::GetAppRunningTime()
     return time;
 }
 
+template <typename T>
+void App::PublishAndDisplay(const std::string topic, T object) {
+
+    // Publish using ZeroMQ publisher if available
+    if (m_publisher) {
+
+        bool published = m_publisher->publish(topic, object);
+        if (published) {
+            MessageBoxW(m_hWnd, L"Message published successfully.", L"Info", MB_OK | MB_ICONINFORMATION);
+        }
+        else {
+            MessageBoxW(m_hWnd, L"Failed to publish message.", L"Error", MB_OK | MB_ICONERROR);
+        }
+    }
+}
+
 std::string App::DetermineAppHealth() {
 
     double currentAppRuntime = GetAppRunningTime();
@@ -385,25 +445,144 @@ std::string App::DetermineAppHealth() {
     }
     else if (GetAppRunningTime() < 360.000000)
     {
-        m_appHealth = "SEVERLY DEGRADED";
-    }
-}
-
-template <typename T>
-void App::PublishAndDisplay(T object) {
-
-    // Publish using ZeroMQ publisher if available
-    if (m_publisher) {
-
-        //bool published = m_publisher->publish("Dummy1", str); PART OF BITSTREAM FIX
-
-        bool published = m_publisher->publish("Dummy1", object);
-        if (published) {
-            MessageBoxW(m_hWnd, L"Message published successfully.", L"Info", MB_OK | MB_ICONINFORMATION);
-        }
-        else {
-            MessageBoxW(m_hWnd, L"Failed to publish message.", L"Error", MB_OK | MB_ICONERROR);
-        }
+        m_appHealth = "SEVERELY DEGRADED";
     }
 
+    return m_appHealth;
 }
+
+
+ void App::DoWork(const std::string topic)
+{
+
+    // based on the topic, select which struct is to be filled and sent back to requester
+
+     std::string responseTopic = "dummyService3Response";
+     std::string output = {};
+
+
+     // ******* THESE ARE REQUEST TOPICS  ********  //
+     // send a payload based on what was asked for  //
+
+     if (topic == "dummyServicesStatusRequest") {
+
+         AppStatus A;
+         //std::memcpy(&A, msg.data(), sizeof(AppStatus));
+
+         A.appRuntime = GetAppRunningTime();
+         PublishAndDisplay(responseTopic, &A);
+         // print out the data so the user can verify
+         output = "Sent Message has runtime of " + std::to_string(A.appRuntime);
+     }
+     else if (topic == "dummyServicesAdditionRequest") {
+
+         AppDataRequest1 A;
+         //std::memcpy(&A, msg.data(), sizeof(AppDataRequest1));
+         A.numberToAdd = m_numToAdd;
+         PublishAndDisplay(responseTopic, &A);
+         //std::cout << "Sent Message has id " << A.appId << std::endl;
+         //std::cout << "Sent Message has health " << A.appHealth << std::endl;
+         output = "Sent Message has number " + std::to_string(A.numberToAdd);
+     }
+     else if (topic == "dummyServicesMultiplicationRequest") {
+
+         AppDataRequest2 A;
+         //std::memcpy(&A, msg.data(), sizeof(AppDataRequest2));
+
+         A.numberToMultiply = m_numToMultiply;
+         PublishAndDisplay(responseTopic, &A);
+         //std::cout << "Sent Message has id: " << A.appId << std::endl;
+         //std::cout << "Sent Message has health " << A.appHealth << std::endl;
+         output = "Sent Message has multiplication of " + std::to_string(A.numberToMultiply);
+
+     };
+     /*
+     * DOES NOT WORK FOR THE TIME BEING WHILE WE FIGURE OUT TOPOGRAPHY
+    // ******* THESE ARE RECIEVE TOPICS ******* //
+    // sent in response to what we requested    //
+    // i.e. we'll use the payload now           //
+    
+    else if (topic == "dummyService1Response") {
+        // filter out on the responseContext
+        if (m_reponseContext == "appStatus")
+        {
+            AppStatus A;
+            A.appRuntime = *static_cast<double*>(m_payload);
+            //cout
+            output = "LARRY's runtime is : " + std::to_string(A.appRuntime);
+        }
+        else if (m_reponseContext == "appDataRequest1")
+        {
+            AppDataRequest1 A;
+            A.numberToAdd = *static_cast<uint32_t*>(m_payload);
+            output = "LARRY's number to add is is : " + std::to_string(A.numberToAdd);
+        }
+        else if (m_reponseContext == "appDataRequest2")
+        {
+            AppDataRequest2 A;
+            A.numberToMultiply = *static_cast<float*>(m_payload);
+            output = "LARRY's number to multiply is : " + std::to_string(A.numberToMultiply);
+        }
+        
+    }
+    else if (topic == "dummyService2Response") {
+        // filter out on the responseContext
+        if (m_reponseContext == "appStatus")
+        {
+            AppStatus A;
+            A.appRuntime = *static_cast<double*>(m_payload);
+            //cout
+            output = "MOE's runtime is : " + std::to_string(A.appRuntime);
+        }
+        else if (m_reponseContext == "appDataRequest1")
+        {
+            AppDataRequest1 A;
+            A.numberToAdd = *static_cast<uint32_t*>(m_payload);
+            output = "MOE's  number to add is is : " + std::to_string(A.numberToAdd);
+        }
+        else if (m_reponseContext == "appDataRequest2")
+        {
+            AppDataRequest2 A;
+            A.numberToMultiply = *static_cast<float*>(m_payload);
+            output = "MOE's  number to multiply is : " + std::to_string(A.numberToMultiply);
+        }
+    };
+    */
+    AsyncPrint(output);
+ 
+}
+
+ void App::OutputThread() {
+
+     while (running_) {
+         std::unique_lock <std::mutex> lock(outMutex_);
+         outCv_.wait(lock, [this] {return !outQueue_.empty() || !running_; });
+
+         while (!outQueue_.empty()) {
+             std::cout << outQueue_.front() << std::endl;
+             outQueue_.pop();
+         }
+     }
+
+ }
+
+ void App::AsyncPrint(const std::string& msg) {
+     {
+         std::lock_guard <std::mutex> lock(outMutex_);
+         outQueue_.push(msg);
+     }
+     outCv_.notify_one();
+ }
+
+ void App::CreateConsoleWindow() {
+
+     AllocConsole();
+     FILE* fp = nullptr;
+     freopen_s(&fp, "CONOUT$", "w", stdout);
+     freopen_s(&fp, "CONOUT$", "w",stderr);
+     freopen_s(&fp, "CONIN$", "r", stdin);
+
+     std::ios::sync_with_stdio(true);
+
+ }
+
