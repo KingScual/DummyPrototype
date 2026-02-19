@@ -40,8 +40,9 @@ public:
     // Output to the window that something was sent
     void SetReceivedText(const wchar_t* text);
 
-    // take in either a request Topic or a reply Topic and perform specific work 
-    void DoWork(const std::string topic);
+    // take in a queue of topics and payloads to work on and remove them 
+    // from the queue after work is done
+    void DoWork(std::queue <std::pair<std::string, void*>>& work);
 
     // Calculates the amount of time the app has been running since initialization
     double GetAppRunningTime();
@@ -77,7 +78,10 @@ private:
     std::condition_variable outCv_;     
     std::atomic<bool> running_;   
     std::thread outputThread_;
-    
+
+    std::queue <std::pair<std::string, void*>> workQueue; // Queue for storing topics and payloads to work on
+    bool m_iHaveWorkToDo;                                 // flag for the app to know that there is work to be done
+
     // data that each App has to be initialized at runtime and requested from other apps
     const std::string m_appId;
     std::string m_appHealth;

@@ -191,9 +191,9 @@ bool App::Initialize(HINSTANCE hInstance, int nCmdShow)
     try {
         // Connect to the same multicast group; subscribe to all work topics and response topics from Dummy2 and Dummy3
         m_subscriber = std::make_unique<ZeroMQSubscriber>(PROXYBACKEND, std::vector<std::string>{
-            "dummyServicesStatusRequest",
-            "dummyServicesAdditionRequest",
-            "dummyServicesMultiplicationRequest"}); // subscribe to Dummy1
+                "status request",
+                "data request 1",
+                "data request 2"}); // subscribe to Dummy1
         if (!m_subscriber->init()) {
             return false;
         }
@@ -221,8 +221,15 @@ int App::Run()
     // if loop breaks from sent message, save off topic/payload and send Windows API call 
     m_subscriber->start([this](const std::string& topic, void* message)
         {
+            // put the topic and payload into a queue and signal that the app has work to do
             m_topic = topic;
             m_payload = message;
+            workQueue.emplace(m_topic, m_payload); 
+            m_iHaveWorkToDo = true;
+
+            if (m_iHaveWorkToDo) {
+                DoWork(workQueue);
+            }
 
             if (m_hWnd) {
                 // LPARAM might lose data
@@ -330,9 +337,7 @@ LRESULT CALLBACK App::WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPa
         // get app instance, do work on recv'd topic 
         App* pThis = reinterpret_cast<App*>(GetWindowLongPtrW(hWnd, GWLP_USERDATA));
         if (pThis)
-        {        
-            pThis->DoWork(pThis->m_topic);
-            
+        {
             // output to the window that we got something
             const wchar_t* w = L"Message Received";
             pThis->SetReceivedText(w);
@@ -421,7 +426,6 @@ void App::PublishAndDisplay(const std::string topic, T object) {
 
     // Publish using ZeroMQ publisher if available
     if (m_publisher) {
-
         bool published = m_publisher->publish(topic, object);
         if (published) {
             MessageBoxW(m_hWnd, L"Message published successfully.", L"Info", MB_OK | MB_ICONINFORMATION);
@@ -451,8 +455,7 @@ std::string App::DetermineAppHealth() {
     return m_appHealth;
 }
 
-
- void App::DoWork(const std::string topic)
+ void App::DoWork(std::queue <std::pair<std::string, void*>>& work)
 {
 
     // based on the topic, select which struct is to be filled and sent back to requester
@@ -460,96 +463,100 @@ std::string App::DetermineAppHealth() {
      std::string responseTopic = "dummyService3Response";
      std::string output = {};
 
+     std::string topic = (work.front()).first;
+     void* payload = (work.front()).second;
 
-     // ******* THESE ARE REQUEST TOPICS  ********  //
-     // send a payload based on what was asked for  //
+     while (!work.empty()) {
+         // ******* THESE ARE REQUEST TOPICS  ********  //
+         // send a payload based on what was asked for  //
 
-     if (topic == "dummyServicesStatusRequest") {
+         if (topic == "status request") {
 
-         AppStatus A;
-         //std::memcpy(&A, msg.data(), sizeof(AppStatus));
+             AppStatus A;
+             //std::memcpy(&A, msg.data(), sizeof(AppStatus));
 
-         A.appRuntime = GetAppRunningTime();
-         PublishAndDisplay(responseTopic, &A);
-         // print out the data so the user can verify
-         output = "Sent Message has runtime of " + std::to_string(A.appRuntime);
-     }
-     else if (topic == "dummyServicesAdditionRequest") {
+             A.appRuntime = GetAppRunningTime();
+             PublishAndDisplay(responseTopic, &A);
+             // print out the data so the user can verify
+             output = "Sent Message has runtime of " + std::to_string(A.appRuntime);
+         }
+         else if (topic == "data request 1") {
 
-         AppDataRequest1 A;
-         //std::memcpy(&A, msg.data(), sizeof(AppDataRequest1));
-         A.numberToAdd = m_numToAdd;
-         PublishAndDisplay(responseTopic, &A);
-         //std::cout << "Sent Message has id " << A.appId << std::endl;
-         //std::cout << "Sent Message has health " << A.appHealth << std::endl;
-         output = "Sent Message has number " + std::to_string(A.numberToAdd);
-     }
-     else if (topic == "dummyServicesMultiplicationRequest") {
+             AppDataRequest1 A;
+             //std::memcpy(&A, msg.data(), sizeof(AppDataRequest1));
+             A.numberToAdd = m_numToAdd;
+             PublishAndDisplay(responseTopic, &A);
+             //std::cout << "Sent Message has id " << A.appId << std::endl;
+             //std::cout << "Sent Message has health " << A.appHealth << std::endl;
+             output = "Sent Message has number " + std::to_string(A.numberToAdd);
+         }
+         else if (topic == "data request 2") {
 
-         AppDataRequest2 A;
-         //std::memcpy(&A, msg.data(), sizeof(AppDataRequest2));
+             AppDataRequest2 A;
+             //std::memcpy(&A, msg.data(), sizeof(AppDataRequest2));
 
-         A.numberToMultiply = m_numToMultiply;
-         PublishAndDisplay(responseTopic, &A);
-         //std::cout << "Sent Message has id: " << A.appId << std::endl;
-         //std::cout << "Sent Message has health " << A.appHealth << std::endl;
-         output = "Sent Message has multiplication of " + std::to_string(A.numberToMultiply);
+             A.numberToMultiply = m_numToMultiply;
+             PublishAndDisplay(responseTopic, &A);
+             //std::cout << "Sent Message has id: " << A.appId << std::endl;
+             //std::cout << "Sent Message has health " << A.appHealth << std::endl;
+             output = "Sent Message has multiplication of " + std::to_string(A.numberToMultiply);
 
+         };
+         /*
+          * DOES NOT WORK FOR THE TIME BEING WHILE WE FIGURE OUT TOPOGRAPHY
+         // ******* THESE ARE RECIEVE TOPICS ******* //
+         // sent in response to what we requested    //
+         // i.e. we'll use the payload now           //
+
+         else if (topic == "dummyService1Response") {
+             // filter out on the responseContext
+             if (m_reponseContext == "appStatus")
+             {
+                 AppStatus A;
+                 A.appRuntime = *static_cast<double*>(m_payload);
+                 //cout
+                 output = "LARRY's runtime is : " + std::to_string(A.appRuntime);
+             }
+             else if (m_reponseContext == "appDataRequest1")
+             {
+                 AppDataRequest1 A;
+                 A.numberToAdd = *static_cast<uint32_t*>(m_payload);
+                 output = "LARRY's number to add is is : " + std::to_string(A.numberToAdd);
+             }
+             else if (m_reponseContext == "appDataRequest2")
+             {
+                 AppDataRequest2 A;
+                 A.numberToMultiply = *static_cast<float*>(m_payload);
+                 output = "LARRY's number to multiply is : " + std::to_string(A.numberToMultiply);
+             }
+
+         }
+         else if (topic == "dummyService2Response") {
+             // filter out on the responseContext
+             if (m_reponseContext == "appStatus")
+             {
+                 AppStatus A;
+                 A.appRuntime = *static_cast<double*>(m_payload);
+                 //cout
+                 output = "MOE's runtime is : " + std::to_string(A.appRuntime);
+             }
+             else if (m_reponseContext == "appDataRequest1")
+             {
+                 AppDataRequest1 A;
+                 A.numberToAdd = *static_cast<uint32_t*>(m_payload);
+                 output = "MOE's  number to add is is : " + std::to_string(A.numberToAdd);
+          }
+          else if (m_reponseContext == "appDataRequest2")
+          {
+              AppDataRequest2 A;
+              A.numberToMultiply = *static_cast<float*>(m_payload);
+              output = "MOE's  number to multiply is : " + std::to_string(A.numberToMultiply);
+          };
+         */
+         AsyncPrint(output);
+         work.pop();
      };
-     /*
-     * DOES NOT WORK FOR THE TIME BEING WHILE WE FIGURE OUT TOPOGRAPHY
-    // ******* THESE ARE RECIEVE TOPICS ******* //
-    // sent in response to what we requested    //
-    // i.e. we'll use the payload now           //
-    
-    else if (topic == "dummyService1Response") {
-        // filter out on the responseContext
-        if (m_reponseContext == "appStatus")
-        {
-            AppStatus A;
-            A.appRuntime = *static_cast<double*>(m_payload);
-            //cout
-            output = "LARRY's runtime is : " + std::to_string(A.appRuntime);
-        }
-        else if (m_reponseContext == "appDataRequest1")
-        {
-            AppDataRequest1 A;
-            A.numberToAdd = *static_cast<uint32_t*>(m_payload);
-            output = "LARRY's number to add is is : " + std::to_string(A.numberToAdd);
-        }
-        else if (m_reponseContext == "appDataRequest2")
-        {
-            AppDataRequest2 A;
-            A.numberToMultiply = *static_cast<float*>(m_payload);
-            output = "LARRY's number to multiply is : " + std::to_string(A.numberToMultiply);
-        }
-        
-    }
-    else if (topic == "dummyService2Response") {
-        // filter out on the responseContext
-        if (m_reponseContext == "appStatus")
-        {
-            AppStatus A;
-            A.appRuntime = *static_cast<double*>(m_payload);
-            //cout
-            output = "MOE's runtime is : " + std::to_string(A.appRuntime);
-        }
-        else if (m_reponseContext == "appDataRequest1")
-        {
-            AppDataRequest1 A;
-            A.numberToAdd = *static_cast<uint32_t*>(m_payload);
-            output = "MOE's  number to add is is : " + std::to_string(A.numberToAdd);
-        }
-        else if (m_reponseContext == "appDataRequest2")
-        {
-            AppDataRequest2 A;
-            A.numberToMultiply = *static_cast<float*>(m_payload);
-            output = "MOE's  number to multiply is : " + std::to_string(A.numberToMultiply);
-        }
-    };
-    */
-    AsyncPrint(output);
- 
+     m_iHaveWorkToDo = false;
 }
 
  void App::OutputThread() {
