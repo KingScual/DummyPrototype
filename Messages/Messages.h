@@ -5,23 +5,23 @@
 
 struct AppStatus {
 
-	//std::string appId = {};
-	//std::string appHealth = {};
+	std::string appId = {};
+	std::string appHealth = {};
 	double appRuntime = NULL;
 };
 
 struct AppDataRequest1 {
 
-	//std::string appId = {};
-	//std::string appHealth = {};
+	std::string appId = {};
+	std::string appHealth = {};
 	uint32_t numberToAdd = NULL;
 
 };
 
 struct AppDataRequest2 {
 
-	//std::string appId = {};
-	//std::string appHealth = {};
+	std::string appId = {};
+	std::string appHealth = {};
 	float numberToMultiply = NULL;
 
 };

@@ -46,9 +46,10 @@ public:
     // Calculates the amount of time the app has been running since initialization
     double GetAppRunningTime();
 
+    // TODO: GET RID OF THIS AND JUST USE OVERLOADED PUBLISHES
     // Take in any object or message struct to publish via ZeroMQ and output  box text
-    template <typename T>
-    void PublishAndDisplay(const std::string topic, T object);
+    //template <typename T>
+    //void PublishAndDisplay(const std::string topic, T object);
 
     // Determine app health based on app running time
     std::string DetermineAppHealth();

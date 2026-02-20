@@ -356,6 +356,7 @@ LRESULT CALLBACK App::WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPa
 // OnButtonClicked: invoked when the button is clicked. Reads text from the edit control and
 // displays it in a message box.
 // process the buffer to determine what message to send
+//THIS AINT FIXED YET, CHECK PUBLISH
 void App::OnButtonClicked()
 {
     if (!m_hEdit)
@@ -364,32 +365,40 @@ void App::OnButtonClicked()
     const int bufSize = 1024;
     wchar_t buffer[bufSize] = {};
     int len = GetWindowTextW(m_hEdit, buffer, bufSize);
-    if(len > 0){
-        
+    if(len > 0){        
         // Convert wide char (UTF-16) buffer to UTF-8 std::string for ZeroMQ
-        int utf8Len = WideCharToMultiByte(CP_UTF8, 0, buffer, len, nullptr, 0, nullptr, nullptr);
         std::string msg;
-        if (utf8Len > 0) {
-            msg.resize(utf8Len);
-            WideCharToMultiByte(CP_UTF8, 0, buffer, len, &msg[0], utf8Len, nullptr, nullptr);
+        int utf8Len = WideCharToMultiByte(CP_UTF8, 0, buffer, len, nullptr, 0, nullptr, nullptr);        
+        msg.resize(utf8Len);
+        WideCharToMultiByte(CP_UTF8, 0, buffer, len, &msg[0], utf8Len, nullptr, nullptr);
 
-            // User decides what message they'd like to request, payload is empty in this case.
-            // filter the entered text to actual request topic         
-            if (msg == "status request" ||
-                msg == "data request 1" ||
-                msg == "data request 2")
+        // User decides what message they'd like to request, payload is empty in this case.
+        // filter the entered text to actual request topic         
+        if (msg == "status request" ||
+            msg == "data request 1" ||
+            msg == "data request 2")
+        {
+            // remember what the nature of our request is for filtering replies
+            m_reponseContext = msg;
+
+           // JUST CALL M_SUBSCRIBER->PUBLISH(MSG);
+            if (m_publisher) 
             {
-                // remember what the nature of our request is for filtering replies
-                m_reponseContext = msg;
-                // this might break zeromq::publish() since payload is empty?
-                PublishAndDisplay(msg, "");
-                
-            }
-            else
-            {
-                MessageBoxW(m_hWnd, L"Please enter the correct text from above.", L"Error", MB_OK | MB_ICONERROR);
+                bool published = m_publisher->publish(msg);
+                if (published) 
+                {
+                    MessageBoxW(m_hWnd, L"Message published successfully.", L"Info", MB_OK | MB_ICONINFORMATION);
+                }
+                else 
+                {
+                    MessageBoxW(m_hWnd, L"Failed to publish message.", L"Error", MB_OK | MB_ICONERROR);
+                }
             }
         }
+        else
+        {
+            MessageBoxW(m_hWnd, L"Please enter the correct text from above.", L"Error", MB_OK | MB_ICONERROR);
+        }        
     }
     else
     {
@@ -422,7 +431,7 @@ double App::GetAppRunningTime()
     double time = double(now - m_appRuntimeStart) / CLOCKS_PER_SEC;
     return time;
 }
-
+//GET RID OF THIS
 template <typename T>
 void App::PublishAndDisplay(const std::string topic, T object) {
 
@@ -457,6 +466,7 @@ std::string App::DetermineAppHealth() {
     return m_appHealth;
 }
 
+//THIS AINT FIXED YET, POPULATE EACH STATEMENT WITH THE CORRECT PUBLISH() CALL
  void App::DoWork(std::queue <std::pair<std::string, void*>>& work)
 {
      std::string output = {};
@@ -515,6 +525,9 @@ std::string App::DetermineAppHealth() {
          // sent in response to what we requested    //
          // i.e. we'll use the payload now           //         
          
+         // NEED TO STATIC CAST AS THE OBJECT ITSELF?
+         // SINCE WE'VE ALREADY SERIALIZED / DESERIALIZED STUFF
+         // AND IT WAS SENT TO US A VOID* OBJECT
          if (topic == "dummyService2Response") {
                  // filter out on the responseContext
               if (m_reponseContext == "status request")

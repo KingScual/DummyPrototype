@@ -86,6 +86,274 @@ void ZeroMQPublisher::close()
 }
 
 
+// publish(topic, message)
+// - Ensures the socket is initialized, then sends a multipart message:
+//   first frame = topic, second frame = message
+// - Uses a mutex to make publishing thread-safe
+// - Any ZMQ errors are caught and logged
+// 
+
+bool ZeroMQPublisher::publish(const std::string& topic)
+{
+    // Ensure socket is initialized
+    if (!initialized_) {
+        if (!init())
+            return false;
+    }
+    std::lock_guard<std::mutex> lock(mutex_);
+
+    try {
+
+        zmq::const_buffer topicBuf(topic.data(), topic.size());
+
+        socket_->send(topicBuf, zmq::send_flags::none);
+      
+        return true;
+    }
+    catch (const zmq::error_t& e) {
+        std::cerr << "ZeroMQPublisher publish error: " << e.what() << "\n";
+        return false;
+    }
+}
+bool ZeroMQPublisher::publish(const std::string& topic, const AppStatus& message)
+{
+    // Ensure socket is initialized
+    if (!initialized_) {
+        if (!init())
+            return false;
+    }
+
+    std::lock_guard<std::mutex> lock(mutex_);
+
+    try {
+
+        zmq::const_buffer topicBuf(topic.data(), topic.size());
+        // Serialize the payload first based on what topic is, then send topic 
+        // and payload as first and second frame respectively
+
+        std::string s = serialize(message);
+        zmq::message_t payload(s.size());
+        std::memcpy(payload.data(), s.data(), s.size());
+
+        socket_->send(topicBuf, zmq::send_flags::sndmore);
+
+        socket_->send(payload, zmq::send_flags::none);
+
+        return true;
+    }
+    catch (const zmq::error_t& e) {
+        std::cerr << "ZeroMQPublisher publish error: " << e.what() << "\n";
+        return false;
+    }
+}
+bool ZeroMQPublisher::publish(const std::string& topic, const AppDataRequest1& message)
+{
+    // Ensure socket is initialized
+    if (!initialized_) {
+        if (!init())
+            return false;
+    }
+
+    std::lock_guard<std::mutex> lock(mutex_);
+
+    try {
+
+        zmq::const_buffer topicBuf(topic.data(), topic.size());
+        // Serialize the payload first based on what topic is, then send topic 
+        // and payload as first and second frame respectively
+
+        std::string s = serialize(message);
+        zmq::message_t payload(s.size());
+        std::memcpy(payload.data(), s.data(), s.size());
+
+        socket_->send(topicBuf, zmq::send_flags::sndmore);
+
+        socket_->send(payload, zmq::send_flags::none);
+
+        return true;
+    }
+    catch (const zmq::error_t& e) {
+        std::cerr << "ZeroMQPublisher publish error: " << e.what() << "\n";
+        return false;
+    }
+}
+bool ZeroMQPublisher::publish(const std::string& topic, const AppDataRequest2& message)
+{
+    // Ensure socket is initialized
+    if (!initialized_) {
+        if (!init())
+            return false;
+    }
+
+    std::lock_guard<std::mutex> lock(mutex_);
+
+    try {
+
+        zmq::const_buffer topicBuf(topic.data(), topic.size());
+        // Serialize the payload first based on what topic is, then send topic 
+        // and payload as first and second frame respectively
+
+        std::string s = serialize(message);
+        zmq::message_t payload(s.size());
+        std::memcpy(payload.data(), s.data(), s.size());
+
+        socket_->send(topicBuf, zmq::send_flags::sndmore);
+
+        socket_->send(payload, zmq::send_flags::none);
+
+        return true;
+    }
+    catch (const zmq::error_t& e) {
+        std::cerr << "ZeroMQPublisher publish error: " << e.what() << "\n";
+        return false;
+    }
+}
+//THIS AINT FIXED YET, FIX INTERNALS
+std::string ZeroMQPublisher::serialize(const AppStatus& message)
+{
+    std::ostringstream oss(std::ios::binary);
+
+
+    {
+        size_t appId_size = A.appId.size();
+        oss.write(reinterpret_cast<const char*>(&appId_size), sizeof(appId_size));
+        oss.write(A.appId.data(), appId_size);
+
+        size_t appHealth_size = A.appHealth.size();
+        oss.write(reinterpret_cast<const char*>(appHealth_size), sizeof(appHealth_size));
+        oss.write(A.appHealth.data(), appHealth_size);
+
+        oss.write(reinterpret_cast<const char*>(&A.appRuntime), sizeof(A.appRuntime));
+
+    }
+
+    {
+        AppDataRequest1 A = message;
+
+        size_t appId_size = A.appId.size();
+        oss.write(reinterpret_cast<const char*>(&appId_size), sizeof(appId_size));
+        oss.write(A.appId.data(), appId_size);
+
+        size_t appHealth_size = A.appHealth.size();
+        oss.write(reinterpret_cast<const char*>(&appHealth_size), sizeof(appHealth_size));
+        oss.write(A.appHealth.data(), appHealth_size);
+
+        oss.write(reinterpret_cast<const char*>(&A.numberToAdd), sizeof(A.numberToAdd));
+    }
+
+    {
+        AppDataRequest2 A = message;
+        size_t appId_size = A.appId.size();
+        oss.write(reinterpret_cast<const char*>(&appId_size), sizeof(appId_size));
+        oss.write(A.appId.data(), appId_size);
+
+        size_t appHealth_size = A.appHealth.size();
+        oss.write(reinterpret_cast<const char*>(&appHealth_size), sizeof(appHealth_size));
+        oss.write(A.appHealth.data(), appHealth_size);
+
+        oss.write(reinterpret_cast<const char*>(&A.numberToMultiply), sizeof(A.numberToMultiply));
+    };
+
+    return oss.str();
+}
+
+std::string ZeroMQPublisher::serialize(const AppDataRequest1& message)
+{
+    std::ostringstream oss(std::ios::binary);
+
+
+    {
+        size_t appId_size = A.appId.size();
+        oss.write(reinterpret_cast<const char*>(&appId_size), sizeof(appId_size));
+        oss.write(A.appId.data(), appId_size);
+
+        size_t appHealth_size = A.appHealth.size();
+        oss.write(reinterpret_cast<const char*>(appHealth_size), sizeof(appHealth_size));
+        oss.write(A.appHealth.data(), appHealth_size);
+
+        oss.write(reinterpret_cast<const char*>(&A.appRuntime), sizeof(A.appRuntime));
+
+    }
+
+    {
+        AppDataRequest1 A = message;
+
+        size_t appId_size = A.appId.size();
+        oss.write(reinterpret_cast<const char*>(&appId_size), sizeof(appId_size));
+        oss.write(A.appId.data(), appId_size);
+
+        size_t appHealth_size = A.appHealth.size();
+        oss.write(reinterpret_cast<const char*>(&appHealth_size), sizeof(appHealth_size));
+        oss.write(A.appHealth.data(), appHealth_size);
+
+        oss.write(reinterpret_cast<const char*>(&A.numberToAdd), sizeof(A.numberToAdd));
+    }
+
+    {
+        AppDataRequest2 A = message;
+        size_t appId_size = A.appId.size();
+        oss.write(reinterpret_cast<const char*>(&appId_size), sizeof(appId_size));
+        oss.write(A.appId.data(), appId_size);
+
+        size_t appHealth_size = A.appHealth.size();
+        oss.write(reinterpret_cast<const char*>(&appHealth_size), sizeof(appHealth_size));
+        oss.write(A.appHealth.data(), appHealth_size);
+
+        oss.write(reinterpret_cast<const char*>(&A.numberToMultiply), sizeof(A.numberToMultiply));
+    };
+
+    return oss.str();
+}
+
+std::string ZeroMQPublisher::serialize(const AppDataRequest2& message)
+{
+    std::ostringstream oss(std::ios::binary);
+
+
+    {
+        size_t appId_size = A.appId.size();
+        oss.write(reinterpret_cast<const char*>(&appId_size), sizeof(appId_size));
+        oss.write(A.appId.data(), appId_size);
+
+        size_t appHealth_size = A.appHealth.size();
+        oss.write(reinterpret_cast<const char*>(appHealth_size), sizeof(appHealth_size));
+        oss.write(A.appHealth.data(), appHealth_size);
+
+        oss.write(reinterpret_cast<const char*>(&A.appRuntime), sizeof(A.appRuntime));
+
+    }
+
+    {
+        AppDataRequest1 A = message;
+
+        size_t appId_size = A.appId.size();
+        oss.write(reinterpret_cast<const char*>(&appId_size), sizeof(appId_size));
+        oss.write(A.appId.data(), appId_size);
+
+        size_t appHealth_size = A.appHealth.size();
+        oss.write(reinterpret_cast<const char*>(&appHealth_size), sizeof(appHealth_size));
+        oss.write(A.appHealth.data(), appHealth_size);
+
+        oss.write(reinterpret_cast<const char*>(&A.numberToAdd), sizeof(A.numberToAdd));
+    }
+
+    {
+        AppDataRequest2 A = message;
+        size_t appId_size = A.appId.size();
+        oss.write(reinterpret_cast<const char*>(&appId_size), sizeof(appId_size));
+        oss.write(A.appId.data(), appId_size);
+
+        size_t appHealth_size = A.appHealth.size();
+        oss.write(reinterpret_cast<const char*>(&appHealth_size), sizeof(appHealth_size));
+        oss.write(A.appHealth.data(), appHealth_size);
+
+        oss.write(reinterpret_cast<const char*>(&A.numberToMultiply), sizeof(A.numberToMultiply));
+    };
+
+    return oss.str();
+}
+
+
 // -------------------- Subscriber implementation --------------------
 
 // Constructor
@@ -236,15 +504,20 @@ void ZeroMQSubscriber::runLoop()
             // unpacking the topic / turning bits back into a string
             std::string topic(static_cast<const char*>(topicMsg.data()), topicMsg.size());
 
+
+           
+
             // Receive payload frame
             zmq::message_t msg;
             auto res2 = socket_->recv(msg, zmq::recv_flags::none);
             if (!res2) {
                 // incomplete message; skip
                 continue;
-            }
-            // HOW DO I GIVE THE PAYLOAD DATA TO THE APP?
-            // THIS NEEDS TO BE FIXED        
+            }    
+
+            // based on what topic is, unserialize 
+            // if topic is status/data1/data2, then call specific serialize function, and cast as a void* object
+            // for portability
 
             // Invoke callback outside of any locks to avoid deadlocks, pulls me out of loop
             if (callback_) {
