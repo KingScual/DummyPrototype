@@ -1,6 +1,5 @@
 // ZeroMQ publisher implementation
 // Provides a simple thread-safe publisher wrapper using cppzmq (zmq.hpp).
-
 #include "ZeroMQ.h"
 
 #include <iostream>

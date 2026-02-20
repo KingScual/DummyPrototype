@@ -54,7 +54,7 @@ public:
 
     // Start background receiving. The callback will be invoked for each message as (topic, message).
     void start(std::function<void(const std::string&, const std::string&)> callback);
-
+    
     // Stop receiving and join the background thread.
     void stop();
 

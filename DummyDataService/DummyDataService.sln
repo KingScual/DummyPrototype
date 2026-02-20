@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.14.36804.6 d17.14
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "DummyDataService", "DummyDataService.vcxproj", "{179D47A2-7099-46A0-AB17-9B8C04E25065}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Debug|x86 = Debug|x86
+		Release|x64 = Release|x64
+		Release|x86 = Release|x86
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{179D47A2-7099-46A0-AB17-9B8C04E25065}.Debug|x64.ActiveCfg = Debug|x64
+		{179D47A2-7099-46A0-AB17-9B8C04E25065}.Debug|x64.Build.0 = Debug|x64
+		{179D47A2-7099-46A0-AB17-9B8C04E25065}.Debug|x86.ActiveCfg = Debug|Win32
+		{179D47A2-7099-46A0-AB17-9B8C04E25065}.Debug|x86.Build.0 = Debug|Win32
+		{179D47A2-7099-46A0-AB17-9B8C04E25065}.Release|x64.ActiveCfg = Release|x64
+		{179D47A2-7099-46A0-AB17-9B8C04E25065}.Release|x64.Build.0 = Release|x64
+		{179D47A2-7099-46A0-AB17-9B8C04E25065}.Release|x86.ActiveCfg = Release|Win32
+		{179D47A2-7099-46A0-AB17-9B8C04E25065}.Release|x86.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {03577BF7-1AC5-4BBD-9FD0-BEBBC91E66AA}
+	EndGlobalSection
+EndGlobal
