@@ -23,7 +23,7 @@ bool DummyDataService_Publisher::Initialize()
     // Initialize ZeroMQ publisher to connect to the proxy frontend socket
     // Initialize ZeroMQ publisher to send messages when the button is clicked.
     try {
-       m_publisher = std::make_unique<ZeroMQPublisher>(PROXYFRONTEND);
+       m_publisher = std::make_unique<ZeroMQPublisher>("tcp://localhost:5556");
         if (!m_publisher->init()) {
             // Initialization failed; keep the pointer so publish() can attempt init lazily.
             OutputDebugStringA("ZeroMQ publisher init failed\n");
@@ -32,6 +32,21 @@ bool DummyDataService_Publisher::Initialize()
     catch (const std::exception& ex) {
         // If ZeroMQ or allocation throws, log but continue running the UI
         OutputDebugStringA(ex.what());
+    }
+    return true;
+}
+
+bool DummyDataService_Publisher::Publish(bool msg)
+{
+    std::string msg_str = msg ? "true" : "false";
+    bool published = m_publisher->publish("StatusInit", msg_str);
+    if (published)
+    {
+        OutputDebugString(L"StatusInit publihsed successfully\n");
+    }
+    else
+    {
+        OutputDebugString(L"StatusInit could not publish\n");
     }
     return true;
 }

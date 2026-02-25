@@ -1,13 +1,12 @@
 #include "DummyDataService_Subscriber.h"
-#include "C:\DummyServicePrototype\DummyPrototype\BitStreamConversion\BitStreamConversion.h"
+#include "BitStreamConversion.h"
 
 #include <cwchar>
 #include <string>
-#include "zmq.hpp"
-/*
+
 // Constructor: initialize internal handles to null.
 DummyDataService_Subscriber::DummyDataService_Subscriber()
-    : m_hReceiveEdit(nullptr), m_subscriber(nullptr)
+    : m_subscriber(nullptr)
 {
 }
 
@@ -34,13 +33,13 @@ bool DummyDataService_Subscriber::Initialize()
 		m_subscriber = std::make_unique<ZeroMQSubscriber>(PROXYBACKEND, std::vector<std::string>{"Status"}); // subscribe to Status topic
         if (m_subscriber->init()) {
             // start receiving; callback will post WM_ZMQ_MESSAGE to UI thread
-            m_subscriber->start([this](const std::string& topic, const bool& message) {
+            m_subscriber->start( [this](const std::string& topic, const std::string& message) {
                 // save the status message
-				bool status = message;
-                if (status != NULL) {
-					//Code to display the status message in DummyDataService UI
-                }
-                });
+                //bool status = message;
+                //if (message != NULL) {
+                    //Code to display the status message in DummyDataService UI
+                //}
+                } );
         }
         else {
             OutputDebugStringA("ZeroMQ subscriber init failed\n");
@@ -51,4 +50,4 @@ bool DummyDataService_Subscriber::Initialize()
     }
 
     return true;
-}*/
+}

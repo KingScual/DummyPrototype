@@ -6,9 +6,12 @@
 
 #include <Windows.h>
 #include <memory>
-#include "Proxy.h"
+#include <sstream>
+//#include "Proxy.h"
 #include "ZeroMQ.h"
 #include "zmq.hpp"
+
+//std::string PROXYFRONTEND = "tcp://localhost:5556";
 
 // Forward-declare ZeroMQPublisher to avoid pulling in the full ZeroMQ header here.
 // The destructor and implementation live in the .cpp which includes the complete type.
@@ -24,8 +27,10 @@ public:
     // Destroy the main window and unregister the window class.
     ~DummyDataService_Publisher();
 
-    // Initialize the Win32 window and controls. Returns true on success.
+    //Initialize Publisher. Returns true on success.
     bool Initialize();
+
+    bool Publish(bool msg);
 
 private:
 

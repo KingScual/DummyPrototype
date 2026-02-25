@@ -10,9 +10,10 @@
 // - Keeps UI logic synchronous and single-threaded for simplicity.
 // - Replace the placeholder status retrieval in the button handler with
 //   real logic as needed.
-
+#include <iostream>
 #include "framework.h"
 #include "DummyDataService.h"
+#include "DummyDataService_Publisher.h"
 
 #define MAX_LOADSTRING 100
 #define ID_BUTTON_GETSTATUS 1001
@@ -31,6 +32,11 @@
 // szTitle / szWindowClass
 //   - Buffers that hold the application title and window class name. Populated
 //     from resources at startup.
+DummyDataService_Publisher publisher;
+
+bool statusInit = 0;
+bool publisherCreated = 0;
+
 HINSTANCE hInst;                                // current instance
 HWND hEditStatus = nullptr;                     // status text box
 WCHAR szTitle[MAX_LOADSTRING];                  // The title bar text
@@ -49,6 +55,17 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 {
     UNREFERENCED_PARAMETER(hPrevInstance);
     UNREFERENCED_PARAMETER(lpCmdLine);
+
+    //Initialize Publisher
+    if (publisher.Initialize())
+    {
+        publisherCreated = 1;
+        OutputDebugString(L"Publisher Created\n");
+    }
+    else
+    {
+        OutputDebugString(L"Publisher Failed to Create\n");
+    }
 
     // Load string resources for the window title and class name. These are
     // defined in the resource script (e.g. .rc file) and localized if needed.
@@ -221,6 +238,17 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     // Handler for the "Get Status" button.
                     // Replace the static status string below with real status retrieval
                     // logic (e.g., query a service, check a subsystem, etc.).
+                    
+                    statusInit = 1;
+                    OutputDebugString(L"statusInit = 1\n");
+                    if (publisherCreated) 
+                    {
+                        bool statusInitPublished = publisher.Publish(statusInit);
+                    }
+                    else
+                    {
+                        OutputDebugString(L"statusInit could not be published\n");
+                    }
                     const wchar_t* statusText = L"Status: OK";
 
                     // If the edit control was created successfully, set its text so the

@@ -44,6 +44,9 @@
     <ClCompile Include="DummyDataService_Publisher.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\ZeroMQ\ZeroMQ.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="DummyDataService.rc">
