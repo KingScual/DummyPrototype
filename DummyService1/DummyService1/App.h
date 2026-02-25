@@ -39,17 +39,12 @@ public:
     // Output to the window that something was sent
     void SetReceivedText(const wchar_t* text);
 
-    // take in a queue of topics and payloads to work on and remove them 
-    // from the queue after work is done
-    void DoWork(std::queue <std::pair<std::string, void*>>& work);
+    // determines nature of work, working on a reply or request
+    // and then performs work 
+    void DoWork(const std::string topic, std::queue <std::unique_ptr<Message>>& workQueue);
 
     // Calculates the amount of time the app has been running since initialization
     double GetAppRunningTime();
-
-    // TODO: GET RID OF THIS AND JUST USE OVERLOADED PUBLISHES
-    // Take in any object or message struct to publish via ZeroMQ and output  box text
-    //template <typename T>
-    //void PublishAndDisplay(const std::string topic, T object);
 
     // Determine app health based on app running time
     std::string DetermineAppHealth();
@@ -79,7 +74,7 @@ private:
     std::atomic<bool> running_;   
     std::thread outputThread_;
 
-    std::queue <std::pair<std::string, void*>> workQueue; // Queue for storing topics and payloads to work on
+    std::queue <std::unique_ptr<Message>> workQueue; // Queue for storing topics and payloads to work on
     bool m_iHaveWorkToDo;                                 // flag for the app to know that there is work to be done
 
     // data that each App has to be initialized at runtime and requested from other apps

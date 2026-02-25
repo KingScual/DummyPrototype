@@ -87,11 +87,11 @@ void ZeroMQPublisher::close()
 
 
 // publish(topic, message)
-// - Ensures the socket is initialized, then sends a multipart message:
-//   first frame = topic, second frame = message
-// - Uses a mutex to make publishing thread-safe
-// - Any ZMQ errors are caught and logged
-// 
+// overloaded to send just a request publish(topic)
+// or to send the response topic w/ payload publish(topic, payload)
+// Ensures the socket is initialized, then sends a multipart message
+// Uses a mutex to make publishing thread-safe
+// Any ZMQ errors are caught and logged
 
 bool ZeroMQPublisher::publish(const std::string& topic)
 {
@@ -115,6 +115,7 @@ bool ZeroMQPublisher::publish(const std::string& topic)
         return false;
     }
 }
+
 bool ZeroMQPublisher::publish(const std::string& topic, const AppStatus& message)
 {
     // Ensure socket is initialized
@@ -146,6 +147,7 @@ bool ZeroMQPublisher::publish(const std::string& topic, const AppStatus& message
         return false;
     }
 }
+
 bool ZeroMQPublisher::publish(const std::string& topic, const AppDataRequest1& message)
 {
     // Ensure socket is initialized
@@ -177,6 +179,7 @@ bool ZeroMQPublisher::publish(const std::string& topic, const AppDataRequest1& m
         return false;
     }
 }
+
 bool ZeroMQPublisher::publish(const std::string& topic, const AppDataRequest2& message)
 {
     // Ensure socket is initialized
@@ -208,99 +211,38 @@ bool ZeroMQPublisher::publish(const std::string& topic, const AppDataRequest2& m
         return false;
     }
 }
-//THIS AINT FIXED YET, FIX INTERNALS
+
 std::string ZeroMQPublisher::serialize(const AppStatus& message)
 {
     std::ostringstream oss(std::ios::binary);
+    
+    size_t appId_size = message.appId.size();
+    oss.write(reinterpret_cast<const char*>(&appId_size), sizeof(appId_size));
+    oss.write(message.appId.data(), appId_size);
 
+    size_t appHealth_size = message.appHealth.size();
+    oss.write(reinterpret_cast<const char*>(&appHealth_size), sizeof(appHealth_size));
+    oss.write(message.appHealth.data(), appHealth_size);
 
-    {
-        size_t appId_size = A.appId.size();
-        oss.write(reinterpret_cast<const char*>(&appId_size), sizeof(appId_size));
-        oss.write(A.appId.data(), appId_size);
-
-        size_t appHealth_size = A.appHealth.size();
-        oss.write(reinterpret_cast<const char*>(appHealth_size), sizeof(appHealth_size));
-        oss.write(A.appHealth.data(), appHealth_size);
-
-        oss.write(reinterpret_cast<const char*>(&A.appRuntime), sizeof(A.appRuntime));
-
-    }
-
-    {
-        AppDataRequest1 A = message;
-
-        size_t appId_size = A.appId.size();
-        oss.write(reinterpret_cast<const char*>(&appId_size), sizeof(appId_size));
-        oss.write(A.appId.data(), appId_size);
-
-        size_t appHealth_size = A.appHealth.size();
-        oss.write(reinterpret_cast<const char*>(&appHealth_size), sizeof(appHealth_size));
-        oss.write(A.appHealth.data(), appHealth_size);
-
-        oss.write(reinterpret_cast<const char*>(&A.numberToAdd), sizeof(A.numberToAdd));
-    }
-
-    {
-        AppDataRequest2 A = message;
-        size_t appId_size = A.appId.size();
-        oss.write(reinterpret_cast<const char*>(&appId_size), sizeof(appId_size));
-        oss.write(A.appId.data(), appId_size);
-
-        size_t appHealth_size = A.appHealth.size();
-        oss.write(reinterpret_cast<const char*>(&appHealth_size), sizeof(appHealth_size));
-        oss.write(A.appHealth.data(), appHealth_size);
-
-        oss.write(reinterpret_cast<const char*>(&A.numberToMultiply), sizeof(A.numberToMultiply));
-    };
-
+    oss.write(reinterpret_cast<const char*>(&message.appRuntime), sizeof(message.appRuntime));
+        
     return oss.str();
 }
 
 std::string ZeroMQPublisher::serialize(const AppDataRequest1& message)
 {
     std::ostringstream oss(std::ios::binary);
+    
+    size_t appId_size = message.appId.size();
+    oss.write(reinterpret_cast<const char*>(&appId_size), sizeof(appId_size));
+    oss.write(message.appId.data(), appId_size);
 
+    size_t appHealth_size = message.appHealth.size();
+    oss.write(reinterpret_cast<const char*>(&appHealth_size), sizeof(appHealth_size));
+    oss.write(message.appHealth.data(), appHealth_size);
 
-    {
-        size_t appId_size = A.appId.size();
-        oss.write(reinterpret_cast<const char*>(&appId_size), sizeof(appId_size));
-        oss.write(A.appId.data(), appId_size);
-
-        size_t appHealth_size = A.appHealth.size();
-        oss.write(reinterpret_cast<const char*>(appHealth_size), sizeof(appHealth_size));
-        oss.write(A.appHealth.data(), appHealth_size);
-
-        oss.write(reinterpret_cast<const char*>(&A.appRuntime), sizeof(A.appRuntime));
-
-    }
-
-    {
-        AppDataRequest1 A = message;
-
-        size_t appId_size = A.appId.size();
-        oss.write(reinterpret_cast<const char*>(&appId_size), sizeof(appId_size));
-        oss.write(A.appId.data(), appId_size);
-
-        size_t appHealth_size = A.appHealth.size();
-        oss.write(reinterpret_cast<const char*>(&appHealth_size), sizeof(appHealth_size));
-        oss.write(A.appHealth.data(), appHealth_size);
-
-        oss.write(reinterpret_cast<const char*>(&A.numberToAdd), sizeof(A.numberToAdd));
-    }
-
-    {
-        AppDataRequest2 A = message;
-        size_t appId_size = A.appId.size();
-        oss.write(reinterpret_cast<const char*>(&appId_size), sizeof(appId_size));
-        oss.write(A.appId.data(), appId_size);
-
-        size_t appHealth_size = A.appHealth.size();
-        oss.write(reinterpret_cast<const char*>(&appHealth_size), sizeof(appHealth_size));
-        oss.write(A.appHealth.data(), appHealth_size);
-
-        oss.write(reinterpret_cast<const char*>(&A.numberToMultiply), sizeof(A.numberToMultiply));
-    };
+    oss.write(reinterpret_cast<const char*>(&message.numberToAdd), sizeof(message.numberToAdd));
+    
 
     return oss.str();
 }
@@ -309,46 +251,16 @@ std::string ZeroMQPublisher::serialize(const AppDataRequest2& message)
 {
     std::ostringstream oss(std::ios::binary);
 
+    size_t appId_size = message.appId.size();
+    oss.write(reinterpret_cast<const char*>(&appId_size), sizeof(appId_size));
+    oss.write(message.appId.data(), appId_size);
 
-    {
-        size_t appId_size = A.appId.size();
-        oss.write(reinterpret_cast<const char*>(&appId_size), sizeof(appId_size));
-        oss.write(A.appId.data(), appId_size);
+    size_t appHealth_size = message.appHealth.size();
+    oss.write(reinterpret_cast<const char*>(&appHealth_size), sizeof(appHealth_size));
+    oss.write(message.appHealth.data(), appHealth_size);
 
-        size_t appHealth_size = A.appHealth.size();
-        oss.write(reinterpret_cast<const char*>(appHealth_size), sizeof(appHealth_size));
-        oss.write(A.appHealth.data(), appHealth_size);
+    oss.write(reinterpret_cast<const char*>(&message.numberToMultiply), sizeof(message.numberToMultiply));
 
-        oss.write(reinterpret_cast<const char*>(&A.appRuntime), sizeof(A.appRuntime));
-
-    }
-
-    {
-        AppDataRequest1 A = message;
-
-        size_t appId_size = A.appId.size();
-        oss.write(reinterpret_cast<const char*>(&appId_size), sizeof(appId_size));
-        oss.write(A.appId.data(), appId_size);
-
-        size_t appHealth_size = A.appHealth.size();
-        oss.write(reinterpret_cast<const char*>(&appHealth_size), sizeof(appHealth_size));
-        oss.write(A.appHealth.data(), appHealth_size);
-
-        oss.write(reinterpret_cast<const char*>(&A.numberToAdd), sizeof(A.numberToAdd));
-    }
-
-    {
-        AppDataRequest2 A = message;
-        size_t appId_size = A.appId.size();
-        oss.write(reinterpret_cast<const char*>(&appId_size), sizeof(appId_size));
-        oss.write(A.appId.data(), appId_size);
-
-        size_t appHealth_size = A.appHealth.size();
-        oss.write(reinterpret_cast<const char*>(&appHealth_size), sizeof(appHealth_size));
-        oss.write(A.appHealth.data(), appHealth_size);
-
-        oss.write(reinterpret_cast<const char*>(&A.numberToMultiply), sizeof(A.numberToMultiply));
-    };
 
     return oss.str();
 }
@@ -423,7 +335,7 @@ bool ZeroMQSubscriber::init()
 
 // start()
 // - Starts a background thread that receives messages and invokes the callback
-void ZeroMQSubscriber::start(std::function<void(const std::string&, void *)> callback)
+void ZeroMQSubscriber::start(std::function<void(const std::string&, std::unique_ptr<Message>)> callback)
 {
     if (!callback)
         return;
@@ -482,18 +394,10 @@ void ZeroMQSubscriber::close()
 // - Uses the short receive timeout set in init() so it can exit promptly when stop() is called
 void ZeroMQSubscriber::runLoop()
 {
-    /* **** Architecture Context ****
-*
-*  SERVICES SUBSCRIBE TO SPECIFIC MESSAGES, NOT TO OTHER SERVICES
-   i.e. first topic frame is the message being sent to allow us to spell out
-   it's specific data members in the next message afterwards, whether sending scheme is lazy (sending POD) or
-   highly structured (serialized, etc.)
-
-   If we have services subscribing to other services, then we have to send additional
-   data to spell out what the layout of that message was, i.e. another frame sent
-*/
+   
     while (running_.load()) {
         try {
+
             // Receive topic frame
             zmq::message_t topicMsg;
             auto res = socket_->recv(topicMsg, zmq::recv_flags::none);
@@ -501,28 +405,53 @@ void ZeroMQSubscriber::runLoop()
                 // timeout or interrupted, loop back and check running_
                 continue;
             }
-            // unpacking the topic / turning bits back into a string
+
             std::string topic(static_cast<const char*>(topicMsg.data()), topicMsg.size());
-
-
-           
-
+            // if topic is a request topic, there will not be a payload frame, send the request to the service looking for it
+            if (topic == "status request" ||
+                topic == "data request 1" ||
+                topic == "data request 2")
+            {
+                if (callback_)
+                    callback_(topic, nullptr);
+            }
             // Receive payload frame
             zmq::message_t msg;
             auto res2 = socket_->recv(msg, zmq::recv_flags::none);
             if (!res2) {
-                // incomplete message; skip
+                // incomplete message; 
                 continue;
-            }    
+            } 
 
-            // based on what topic is, unserialize 
-            // if topic is status/data1/data2, then call specific serialize function, and cast as a void* object
-            // for portability
+            // unpacking the topic to be used and unpacking and determining payload to be deserialized
 
+            std::string data(static_cast<const char*>(msg.data()), msg.size());
+
+            // invoking callback to pop out of loop and send the topic / payload to App
+            // context: these are reply's to requests from apps
+            if (callback_)
+            {
+                if (topic == "statusDataResponse")
+                {
+                    callback_(topic, std::unique_ptr<Message>(new AppStatus(deserializeStatus(data))));
+                }
+                else if (topic == "additionDataResponse")
+                {
+                    callback_(topic, std::unique_ptr<Message>(new AppDataRequest1(deserializeAddition(data))));
+                }
+                else if (topic == "multiplicationDataResponse")
+                {
+                    callback_(topic, std::unique_ptr<Message>(new AppDataRequest2(deserializeMultiplication(data))));
+                }
+
+
+            }
             // Invoke callback outside of any locks to avoid deadlocks, pulls me out of loop
+            /*  old mech
             if (callback_) {
                 callback_(topic, msg.data());
             }
+            */
         }
         catch (const zmq::error_t& e) {
             // EAGAIN indicates no message was available within the timeout
@@ -536,3 +465,106 @@ void ZeroMQSubscriber::runLoop()
     }
 }
 
+// deserialize...()
+// takes in the serialized message casted as a string from ZeroMQ 
+// and hand-unpacks
+// Note: this is not the most efficient way of doing it, but requires no external libraries
+// i.e. ProtoBuffers, FlatBuffers
+AppStatus ZeroMQSubscriber::deserializeStatus(const std::string& s)
+{
+    
+    AppStatus message;
+    
+    const char* ptr = s.data();
+    const char* end = ptr + s.size();
+    
+    auto read_raw = [&](void* dest, size_t size)
+        {
+            if (ptr + size > end)
+                throw std::runtime_error("Buffer underflow");
+            std::memcpy(dest, ptr, size);
+            ptr += size;
+        };
+    
+    size_t appId_size;
+    read_raw(&appId_size, sizeof(appId_size));
+    
+    message.appId.assign(ptr, appId_size);
+    ptr += appId_size;
+    
+    size_t appHealth_size;
+    read_raw(&appHealth_size, sizeof(appHealth_size));
+    
+    message.appHealth.assign(ptr, appHealth_size);
+    ptr += appHealth_size;
+    
+    read_raw(&message.appRuntime, sizeof(message.appRuntime));
+    
+    return message;
+    
+}
+AppDataRequest1 ZeroMQSubscriber::deserializeAddition(const std::string& s)
+{
+    AppDataRequest1 message;
+
+    const char* ptr = s.data();
+    const char* end = ptr + s.size();
+
+    auto read_raw = [&](void* dest, size_t size)
+        {
+            if (ptr + size > end)
+                throw std::runtime_error("Buffer underflow");
+            std::memcpy(dest, ptr, size);
+            ptr += size;
+        };
+
+    size_t appId_size;
+    read_raw(&appId_size, sizeof(appId_size));
+
+    message.appId.assign(ptr, appId_size);
+    ptr += appId_size;
+
+    size_t appHealth_size;
+    read_raw(&appHealth_size, sizeof(appHealth_size));
+
+    message.appHealth.assign(ptr, appHealth_size);
+    ptr += appHealth_size;
+
+    read_raw(&message.numberToAdd, sizeof(message.numberToAdd));
+
+    return message;
+
+
+}
+AppDataRequest2 ZeroMQSubscriber::deserializeMultiplication(const std::string& s)
+{
+    AppDataRequest2 message;
+
+    const char* ptr = s.data();
+    const char* end = ptr + s.size();
+
+    auto read_raw = [&](void* dest, size_t size)
+        {
+            if (ptr + size > end)
+                throw std::runtime_error("Buffer underflow");
+            std::memcpy(dest, ptr, size);
+            ptr += size;
+        };
+
+    size_t appId_size;
+    read_raw(&appId_size, sizeof(appId_size));
+
+    message.appId.assign(ptr, appId_size);
+    ptr += appId_size;
+
+    size_t appHealth_size;
+    read_raw(&appHealth_size, sizeof(appHealth_size));
+
+    message.appHealth.assign(ptr, appHealth_size);
+    ptr += appHealth_size;
+
+    read_raw(&message.numberToMultiply, sizeof(message.numberToMultiply));
+
+    return message;
+
+}
