@@ -2,11 +2,29 @@
 
 #include <cwchar>
 #include <string>
+#include <chrono>
+#include "Messages.h"
 #include "zmq.hpp"
 
 // Constructor: initialize internal handles to null.
+// TODO, initialize all of the personal app information here
 App::App()
-    : m_hInstance(nullptr), m_hWnd(nullptr), m_hButton(nullptr), m_hEdit(nullptr), m_hReceiveEdit(nullptr), m_publisher(nullptr), m_subscriber(nullptr)
+    : m_hInstance(nullptr), 
+    m_hWnd(nullptr), 
+    m_hButton(nullptr), 
+    m_hEdit(nullptr), 
+    m_hReceiveEdit(nullptr), 
+    outputThread_(),
+    m_publisher(nullptr), 
+    m_subscriber(nullptr),
+    m_appId("MOE"), 
+    m_appRuntimeStart(NULL), 
+    m_numToAdd(100), 
+    m_numToMultiply(6.7),
+    m_topic(""),
+    m_payload(nullptr),
+    m_reponseContext(""),
+    m_iHaveWorkToDo(false)
 {
 }
 
@@ -32,6 +50,17 @@ App::~App()
         UnregisterClassW(m_windowClassName, m_hInstance);
         m_hInstance = nullptr;
     }
+    // close the background thread
+    bool expected = true;
+    if (!running_.compare_exchange_strong(expected, false))
+        return;
+
+    if(outputThread_.joinable())
+    {
+        running_ = false;
+        outCv_.notify_one();
+        outputThread_.join();
+    }
 
     // m_publisher will be cleaned up automatically (its destructor calls close())
 }
@@ -41,6 +70,11 @@ App::~App()
 bool App::Initialize(HINSTANCE hInstance, int nCmdShow)
 {
     m_hInstance = hInstance;
+
+    // set App health status and get the beginning of app running
+    m_appHealth = "HEALTHY";
+    m_appRuntimeStart = clock();
+    running_ = true;
 
     WNDCLASSEXW wc = {};
     wc.cbSize = sizeof(wc);
@@ -140,6 +174,7 @@ bool App::Initialize(HINSTANCE hInstance, int nCmdShow)
 
     ShowWindow(m_hWnd, nCmdShow);
     UpdateWindow(m_hWnd);
+
     // Initialize ZeroMQ publisher to connect to the proxy frontend socket
     try {
         m_publisher = std::make_unique<ZeroMQPublisher>(PROXYFRONTEND);
@@ -155,27 +190,16 @@ bool App::Initialize(HINSTANCE hInstance, int nCmdShow)
 
     // Initialize ZeroMQ subscriber to connect to the proxy backend socket for messages in background and post to UI
     try {
-        // Connect to the same multicast group; subscribe to topics Dummy1 and Dummy3
-        m_subscriber = std::make_unique<ZeroMQSubscriber>(PROXYBACKEND, std::vector<std::string>{"Dummy1", "Dummy3"}); // subscribe to Dummy1 and Dummy3
-        if (m_subscriber->init()) {
-            // start receiving; callback will post WM_ZMQ_MESSAGE to UI thread
-            m_subscriber->start([this](const std::string& topic, const std::string& message) {
-                // Convert message (UTF-8) to wide string
-                int wlen = MultiByteToWideChar(CP_UTF8, 0, message.c_str(), -1, nullptr, 0);
-                if (wlen > 0) {
-                    wchar_t* wbuf = reinterpret_cast<wchar_t*>(GlobalAlloc(GMEM_FIXED, wlen * sizeof(wchar_t)));
-                    if (wbuf) {
-                        MultiByteToWideChar(CP_UTF8, 0, message.c_str(), -1, wbuf, wlen);
-                        // Post to UI thread; WindowProc will free the buffer
-                        if (m_hWnd) {
-                            PostMessageW(m_hWnd, WM_ZMQ_MESSAGE, 0, reinterpret_cast<LPARAM>(wbuf));
-                        }
-                        else {
-                            GlobalFree(wbuf);
-                        }
-                    }
-                }
-            });
+	
+        // THESE ARE THE TOPICS THAT DUMMY2 LISTENS TO, THIS IS ALL-CAPS 'CAUSE IT'S REALLY IMPORTANT
+		// AND HARD TO DEBUG IF THERE ISN'T TOPIC ALIGNMENT BETWEEN THE SERVICES
+		// connect to proxy
+        m_subscriber = std::make_unique<ZeroMQSubscriber>(PROXYBACKEND, std::vector<std::string>{
+            "status request",
+            "data request 1",
+            "data request 2"}); //reply to dummy1's requests
+        if (!m_subscriber->init()) {
+            return false;
         }
         else {
             OutputDebugStringA("ZeroMQ subscriber init failed\n");
@@ -189,9 +213,39 @@ bool App::Initialize(HINSTANCE hInstance, int nCmdShow)
 }
 
 // Run: main message loop. Processes messages until WM_QUIT is received and returns exit code.
+// Start the background console display thread. 
+// Start the background subscriber loop.
 int App::Run()
 {
     MSG msg;
+    outputThread_ = std::thread(&App::OutputThread, this);
+
+    CreateConsoleWindow();
+    // start receiving; callback will post WM_ZMQ_MESSAGE to UI thread
+    // if loop breaks from sent message, save off topic/payload and send Windows API call 
+    m_subscriber->start([this](const std::string& topic, std::unique_ptr<Message> message)
+        {
+            // put the topic and payload into a queue and signal that the app has work to do
+            m_topic = topic;
+            workQueue.emplace(std::move(message));
+            m_iHaveWorkToDo = true;
+
+            if (m_iHaveWorkToDo) {
+                DoWork(topic, workQueue);
+            }
+
+            if (m_hWnd) {
+                // LPARAM might lose data
+                //PostMessageW(m_hWnd, WM_ZMQ_MESSAGE, 0, reinterpret_cast<LPARAM>(message));
+                // version to not use LPARAM AND WPARAM for the sake of not losing data
+                PostMessageW(m_hWnd, WM_ZMQ_MESSAGE, 0, 0);
+            }
+            else {
+			// NEED TO FIGURE OUT WHAT THIS DOES, DONT WANT TO CRASH
+                //GlobalFree(message);
+            }
+
+        });
     while (GetMessageW(&msg, nullptr, 0, 0) > 0)
     {
         TranslateMessage(&msg);
@@ -262,7 +316,7 @@ LRESULT CALLBACK App::WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPa
         PAINTSTRUCT ps;
         HDC hdc = BeginPaint(hWnd, &ps);
         // Draw the label above the top edit control
-        const wchar_t* text = L"Enter text below and press Submit";
+        const wchar_t* text = L"DUMMY2 ONLY LISTENS FOR MESSAGES, DO NOT SUMBIT";
         TextOutW(hdc, 10, 12, text, static_cast<int>(std::wcslen(text)));
 
         // Draw a label above the receive-only edit control at the bottom
@@ -284,15 +338,15 @@ LRESULT CALLBACK App::WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPa
     // Handle ZMQ message posted from receiver thread
     if (uMsg == WM_ZMQ_MESSAGE)
     {
+        // get app instance, do work on recv'd topic 
         App* pThis = reinterpret_cast<App*>(GetWindowLongPtrW(hWnd, GWLP_USERDATA));
         if (pThis)
-        {
-            wchar_t* incoming = reinterpret_cast<wchar_t*>(lParam);
-            if (incoming)
-            {
-                pThis->SetReceivedText(incoming);
-                GlobalFree(incoming);
-            }
+        {     
+            // output to the window that we got something
+            const wchar_t* w = L"Message Received";
+            pThis->SetReceivedText(w);
+            // NEED TO FIGURE OUT WHAT THIS DOES, DONT WANT TO CRASH
+            //GlobalFree(pThis->m_payload);
         }
         return 0;
     }
@@ -302,42 +356,57 @@ LRESULT CALLBACK App::WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPa
 
 // OnButtonClicked: invoked when the button is clicked. Reads text from the edit control and
 // displays it in a message box.
+// process the buffer to determine what message to send
 void App::OnButtonClicked()
 {
+    /*  //PURPOSEFULLY DO NOTHING FOR THE TIME BEING, DUMMY 2 DOESNT REQUEST MESSAGES
+        
     if (!m_hEdit)
         return;
 
     const int bufSize = 1024;
     wchar_t buffer[bufSize] = {};
     int len = GetWindowTextW(m_hEdit, buffer, bufSize);
-    if (len > 0)
-    {
-        //MessageBoxW(m_hWnd, buffer, L"Submitted Text", MB_OK | MB_ICONINFORMATION);
-
+    if(len > 0){        
         // Convert wide char (UTF-16) buffer to UTF-8 std::string for ZeroMQ
-        int utf8Len = WideCharToMultiByte(CP_UTF8, 0, buffer, len, nullptr, 0, nullptr, nullptr);
         std::string msg;
-        if (utf8Len > 0) {
-            msg.resize(utf8Len);
-            WideCharToMultiByte(CP_UTF8, 0, buffer, len, &msg[0], utf8Len, nullptr, nullptr);
-        }
+        int utf8Len = WideCharToMultiByte(CP_UTF8, 0, buffer, len, nullptr, 0, nullptr, nullptr);        
+        msg.resize(utf8Len);
+        WideCharToMultiByte(CP_UTF8, 0, buffer, len, &msg[0], utf8Len, nullptr, nullptr);
 
-        // Publish using ZeroMQ publisher if available
-        if (m_publisher) {
-            bool published = m_publisher->publish("Dummy2", msg);
-            if (published) {
-                MessageBoxW(m_hWnd, L"Message published successfully.", L"Info", MB_OK | MB_ICONINFORMATION);
-            }
-            else {
-                MessageBoxW(m_hWnd, L"Failed to publish message.", L"Error", MB_OK | MB_ICONERROR);
+        // User decides what message they'd like to request, payload is empty in this case.
+        // filter the entered text to actual request topic         
+        if (msg == "status request" ||
+            msg == "data request 1" ||
+            msg == "data request 2")
+        {
+            // remember what the nature of our request is for filtering replies
+            m_reponseContext = msg;
+
+           // JUST CALL M_SUBSCRIBER->PUBLISH(MSG);
+            if (m_publisher) 
+            {
+                bool published = m_publisher->publish(msg);
+                if (published) 
+                {
+                    MessageBoxW(m_hWnd, L"Message published successfully.", L"Info", MB_OK | MB_ICONINFORMATION);
+                }
+                else 
+                {
+                    MessageBoxW(m_hWnd, L"Failed to publish message.", L"Error", MB_OK | MB_ICONERROR);
+                }
             }
         }
+        else
+        {
+            MessageBoxW(m_hWnd, L"Please enter the correct text from above.", L"Error", MB_OK | MB_ICONERROR);
+        }        
     }
     else
     {
         MessageBoxW(m_hWnd, L"No text entered.", L"Info", MB_OK | MB_ICONINFORMATION);
-    }
-
+    } */
+    MessageBoxW(m_hWnd, L"You don't listen well.  ", L"Error", MB_OK | MB_ICONERROR);
 }
 
 // SetReceivedText: set the text shown in the receive-only edit control (used by other apps to send data).
@@ -350,6 +419,7 @@ void App::SetReceivedText(const wchar_t* text)
 int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE /*hPrevInstance*/, PWSTR /*pCmdLine*/, int nCmdShow)
 {
     App app;
+
     if (!app.Initialize(hInstance, nCmdShow))
     {
         return -1;
@@ -357,3 +427,188 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE /*hPrevInstance*/, PWSTR /*pC
 
     return app.Run();
 }
+
+double App::GetAppRunningTime()
+{
+    clock_t now = clock();
+    double time = double(now - m_appRuntimeStart) / CLOCKS_PER_SEC;
+    return time;
+}
+
+
+std::string App::DetermineAppHealth() {
+
+    double currentAppRuntime = GetAppRunningTime();
+    if (GetAppRunningTime() < 120.0000000)
+    {
+        m_appHealth = "HEALTHY";
+    }
+    else if (GetAppRunningTime() < 240.000000)
+    {
+        m_appHealth = "IMPACTED";
+    }
+    else if (GetAppRunningTime() < 360.000000)
+    {
+        m_appHealth = "SEVERELY DEGRADED";
+    }
+
+    return m_appHealth;
+}
+
+void App::DoWork(const std::string receivedTopic, std::queue <std::unique_ptr<Message>>& workQueue)
+{
+     // based on topic received, determine what struct to fill and send back to requester
+     std::string responseTopic = {};
+     std::string output = {};
+
+     std::unique_ptr<Message> msg = std::move(workQueue.front());
+     while (!workQueue.empty()) 
+     {
+         // ******* THESE ARE REQUESTED DATA TOPICS  ********  //
+         // send a payload based on what was asked for  //
+         if (workQueue.front() == nullptr) // if there is no payload, i.e. this is just a request
+         {
+             if (receivedTopic == "status request")
+             {
+
+                 responseTopic = "statusDataResponse";
+                 AppStatus A;
+                 A.appId = m_appId;
+                 A.appHealth = DetermineAppHealth();
+                 A.appRuntime = GetAppRunningTime();
+
+                 // print out the data so the user can verify
+
+                 output = "I'm sending my id: "+ A.appId + " health: " + A.appHealth + " and running time: " + std::to_string(A.appRuntime);
+
+                 if (m_publisher)
+                 {
+                     bool published = m_publisher->publish(responseTopic, A);
+                     if (published)
+                     {
+                         MessageBoxW(m_hWnd, L"Response published successfully.", L"Info", MB_OK | MB_ICONINFORMATION);
+                     }
+                     else
+                     {
+                         MessageBoxW(m_hWnd, L"Failed to publish response.", L"Error", MB_OK | MB_ICONERROR);
+                     }
+                 }
+             }
+             else if (receivedTopic == "data request 1")
+             {
+                 responseTopic = "additionDataResponse";
+                 AppDataRequest1 A;
+
+                 A.appId = m_appId;
+                 A.appHealth = DetermineAppHealth();
+                 A.numberToAdd = m_numToAdd;
+
+                 output = "I'm sending my id: " + A.appId + " health: " + A.appHealth + " number to add with: " + std::to_string(A.numberToAdd);
+
+                 if (m_publisher)
+                 {
+                     bool published = m_publisher->publish(responseTopic, A);
+                     if (published)
+                     {
+                         MessageBoxW(m_hWnd, L"Response published successfully.", L"Info", MB_OK | MB_ICONINFORMATION);
+                     }
+                     else
+                     {
+                         MessageBoxW(m_hWnd, L"Failed to publish response.", L"Error", MB_OK | MB_ICONERROR);
+                     }
+                 }
+             }
+             else if (receivedTopic == "data request 2")
+             {
+                 responseTopic = "multiplicationDataResponse";
+                 AppDataRequest2 A;
+                 A.appId = m_appId;
+                 A.appHealth = DetermineAppHealth();
+                 A.numberToMultiply = m_numToMultiply;
+
+                 output = "I'm sending my id: " + A.appId + " health: " + A.appHealth + " and number to multiply with: " + std::to_string(A.numberToMultiply);
+
+                 if (m_publisher)
+                 {
+                     bool published = m_publisher->publish(responseTopic, A);
+                     if (published)
+                     {
+                         MessageBoxW(m_hWnd, L"Response published successfully.", L"Info", MB_OK | MB_ICONINFORMATION);
+                     }
+                     else
+                     {
+                         MessageBoxW(m_hWnd, L"Failed to publish response.", L"Error", MB_OK | MB_ICONERROR);
+                     }
+                 }
+
+             };
+         }
+         else
+         {
+			//purposefully blank, will eventually fit below here eventually
+         }
+         /*
+         * // NOT WORKING FOR RIGHT NOW, TILL THE TOPIC / TOPOGRAPHY QUESTIONS ARE FIGURED OUT
+         // ******* THESE ARE SENT PAYLOADS ******* //
+
+		 
+		 // THIS IS WHERE THE ACTUAL MANIPULATION OF DATA HAPPENS I.E. WORK
+		 // RIGHT NOW WE JUST COUT STUFF, BUT YOU COULD DO COOL THINGS HERE I SUPPOSE
+         if (AppStatus* s = dynamic_cast<AppStatus*>(msg.get()))
+         {
+             // do whatever work you'd like to do with status data here
+             output = s->appId +" is " + s->appHealth+ "and has been running for " + std::to_string(s->appRuntime);
+         }
+
+         else if (AppDataRequest1* a = dynamic_cast<AppDataRequest1*>(msg.get()))
+         {
+             // do addition stuff
+             output = a->appId + " is " + a->appHealth + " has number to add of " + std::to_string(a->numberToAdd);
+         }
+
+         else if (AppDataRequest2* m = dynamic_cast<AppDataRequest2*>(msg.get()))
+         {
+             // do mulitplication stuff
+             output = m->appId + " is " + m->appHealth + " has number to multiply of  " + std::to_string(m->numberToMultiply);
+
+         */
+         AsyncPrint(output);
+         workQueue.pop();
+     };
+     m_iHaveWorkToDo = false;
+}
+
+ void App::OutputThread() {
+
+     while (running_) {
+         std::unique_lock <std::mutex> lock(outMutex_);
+         outCv_.wait(lock, [this] {return !outQueue_.empty() || !running_; });
+
+         while (!outQueue_.empty()) {
+             std::cout << outQueue_.front() << std::endl;
+             outQueue_.pop();
+         }
+     }
+
+ }
+
+ void App::AsyncPrint(const std::string& msg) {
+     {
+         std::lock_guard <std::mutex> lock(outMutex_);
+         outQueue_.push(msg);
+     }
+     outCv_.notify_one();
+ }
+
+ void App::CreateConsoleWindow() {
+
+     AllocConsole();
+     FILE* fp = nullptr;
+     freopen_s(&fp, "CONOUT$", "w", stdout);
+     freopen_s(&fp, "CONOUT$", "w",stderr);
+     freopen_s(&fp, "CONIN$", "r", stdin);
+
+     std::ios::sync_with_stdio(true);
+
+ }
+
