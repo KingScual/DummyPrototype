@@ -1,21 +1,33 @@
-There are 3 "Dummy Services" that will individually need to be built using Visual Studio 2022 (it should also work with VS2017 but I don't have that version installed to test)
-Each Dummy Service contains a .sln file if each of their respective folders. (I'm working on a script to build all three at the same time)
-
-There is already existing .exe files for each Dummy Service in their current state that can be launched using the Launch.bat script and closed using the Close.bat script.
-
-Each Dummy Service contains an App.cpp and App.h file where all the code will be (I'm assuming) with comments on what each section does.
-
-The main branch doesn't contain any ZeroMQ code.
-This is becuase I wanted a clean version of the prototype that I know can be built and run.
-I'm thinking we can download or create our own branches to work on the code and keep the main branch as a clean version.
 
 First time clone and build instructions:
 
-*** Note: libzmq and cppzmq need to be **installed** and **built** first ***
-*** dependencies:
-*** libzmq and cppzmq will be here if installed via vcpkg:
-*** C:\vcpkg\installed\x64-windows\bin\libzmq-mt-4_3_5.dll
-*** C:\vcpkg\installed\x64-windows\include\zmq.hpp
+Note: libzmq and cppzmq need to be installed and built first 
+dependencies:
+libzmq and cppzmq will be here if installed via vcpkg 
 
-git clone https://github.com/KingScual/DummyPrototype.git
+C:\vcpkg\installed\x64-windows\bin\libzmq-mt-4_3_5.dll
+C:\vcpkg\installed\x64-windows\include\zmq.hpp
 
+1. git clone https://github.com/KingScual/DummyPrototype.git
+
+put under C: , name folder DummyPrototype
+
+2. setup up dependencies for each DummyService to use (i.e. headers Messages.h, Proxy.h, ZeroMQ.h)
+
+Properties > Configuration Properties > C/C++ > General > Additional Include Directories
+C:\vcpkg\installed\x64-windows\bin;C:\DummyPrototype\Proxy\Proxy;C:\DummyPrototype\ZeroMQ;C:\DummyPrototype\BitStreamConversion;C:\DummyPrototype\Messages;%(AdditionalIncludeDirectories)
+(there might be additional Linker dependencies under
+Properties > Configuration Properties > Linker > Input > Additional Dependencies
+of which put C:\vcpkg\installed\x64-windows\include\zmq.hpp here
+
+implementation files need to be added to each DummyService.sln
+Messages.cpp, Proxy.cpp, ZeroMQ.cpp, BitStreamConversion.cpp
+
+3.  Build
+There are 4 solutions to build:
+C:\DummyPrototype\DummyService1\DummyService1.sln
+C:\DummyPrototype\DummyService2\DummyService2.sln
+C:\DummyPrototype\DummyService3\DummyService3.sln
+C:\DummyPrototype\Proxy\Proxy.sln
+
+4. If it still doesn't work, reach out to Pascual and Levi and we'll update this readme 
