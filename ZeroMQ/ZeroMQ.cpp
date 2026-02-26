@@ -6,6 +6,7 @@
 #include <thread>
 #include <chrono>
 #include <cerrno>
+#include <Windows.h>
 
 // Constructor
 // - store the connect address since we are using a proxy, create a ZMQ context with one IO thread
@@ -255,7 +256,7 @@ void ZeroMQSubscriber::runLoop()
                 // timeout or interrupted, loop back and check running_
                 continue;
             }
-
+            OutputDebugStringA("Topic Received\n");
             std::string topic(static_cast<const char*>(topicMsg.data()), topicMsg.size());
 
             // Receive message frame
@@ -265,7 +266,7 @@ void ZeroMQSubscriber::runLoop()
                 // incomplete message; skip
                 continue;
             }
-
+            OutputDebugStringA("Message Received\n");
             std::string message(static_cast<const char*>(msg.data()), msg.size());
 
             // Invoke callback outside of any locks to avoid deadlocks

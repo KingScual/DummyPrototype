@@ -39,7 +39,7 @@ bool DummyDataService_Publisher::Initialize()
 bool DummyDataService_Publisher::Publish(bool msg)
 {
     std::string msg_str = msg ? "true" : "false";
-    bool published = m_publisher->publish("StatusInit", msg_str);
+    bool published = m_publisher->publish("StatusInit",msg_str);
     if (published)
     {
         OutputDebugString(L"StatusInit publihsed successfully\n");

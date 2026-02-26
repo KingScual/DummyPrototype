@@ -36,6 +36,7 @@ DummyDataService_Publisher publisher;
 
 bool statusInit = 0;
 bool publisherCreated = 0;
+const wchar_t* prevStatus;
 
 HINSTANCE hInst;                                // current instance
 HWND hEditStatus = nullptr;                     // status text box
@@ -236,9 +237,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             case ID_BUTTON_GETSTATUS:
                 {
                     // Handler for the "Get Status" button.
-                    // Replace the static status string below with real status retrieval
-                    // logic (e.g., query a service, check a subsystem, etc.).
-                    
+                   
+                    const wchar_t* statusText;
+                    //Set Status Initiate to 1 and publish to request system status.
                     statusInit = 1;
                     OutputDebugString(L"statusInit = 1\n");
                     if (publisherCreated) 
@@ -249,7 +250,18 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     {
                         OutputDebugString(L"statusInit could not be published\n");
                     }
-                    const wchar_t* statusText = L"Status: OK";
+
+                    // Replace the static status string below with real status retrieval
+                    statusText = L"Status: OK";
+                    
+                    //Psuedo code for retrieving status
+                    /*
+                    if(statusActive == 1)
+                    {
+                        statusText = subscriber();
+                    }
+                    
+                    */
 
                     // If the edit control was created successfully, set its text so the
                     // user sees the status. If not, fall back to a message box.
