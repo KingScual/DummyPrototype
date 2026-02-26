@@ -20,7 +20,7 @@ App::App()
     m_appId("LARRY"),
     m_appRuntimeStart(NULL),
     m_numToAdd(100),
-    m_numToMultiply(9.80665),
+    m_numToMultiply(9.80665f),
     m_topic(""),
     m_payload(nullptr),
     m_reponseContext(""),
@@ -192,11 +192,23 @@ bool App::Initialize(HINSTANCE hInstance, int nCmdShow)
     try {
         // THESE ARE THE TOPICS THAT DUMMY1 LISTENS TO, THIS IS ALL-CAPS 'CAUSE IT'S REALLY IMPORTANT
 		// AND HARD TO DEBUG IF THERE ISN'T TOPIC ALIGNMENT BETWEEN THE SERVICES
+		// connect to proxy
         m_subscriber = std::make_unique<ZeroMQSubscriber>(PROXYBACKEND, std::vector<std::string>{
-            "statusDataResponse", 
-            "additionDataResponse", 
-            "multiplicationDataResponse"
-            }); // listen for reponses from dummy2 and 3
+            //because of using a Proxy, we have to have really specific topics right now
+			
+			//listening for 2 and/or 3's requests
+            "statusRequestFrom2",
+            "additionRequestFrom2",
+            "multiplicationRequestFrom2",
+            "statusRequestFrom3",
+            "additionRequestFrom3",
+            "multiplicationRequestFrom3",
+			       
+			//listening for 2 and 3's to response to OUR request       
+			"statusResponseTo1",
+			"additionResponseTo1",
+			"multiplicationReponseTo1"
+        });
         if (!m_subscriber->init()) {
             return false;
         }
@@ -226,11 +238,11 @@ int App::Run()
         {
             // put the topic and payload into a queue and signal that the app has work to do
             m_topic = topic;
-            workQueue.emplace(std::move(message));
+            m_workQueue.push(std::move(message));
             m_iHaveWorkToDo = true;
 
             if (m_iHaveWorkToDo) {
-                DoWork(topic, workQueue);
+                DoWork(topic);
             }
 
             if (m_hWnd) {
@@ -315,7 +327,7 @@ LRESULT CALLBACK App::WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPa
         PAINTSTRUCT ps;
         HDC hdc = BeginPaint(hWnd, &ps);
         // Draw the label above the top edit control
-        const wchar_t* text = L"Messages to request are status request, data request 1, and data request 2. ";
+        const wchar_t* text = L"statusRequestFrom1, additionRequestFrom1, multiplicationRequestFrom1 to request from 2 and 3";
         TextOutW(hdc, 10, 12, text, static_cast<int>(std::wcslen(text)));
 
         // Draw a label above the receive-only edit control at the bottom
@@ -374,9 +386,9 @@ void App::OnButtonClicked()
 
         // User decides what message they'd like to request, payload is empty in this case.
         // filter the entered text to actual request topic         
-        if (msg == "status request" ||
-            msg == "data request 1" ||
-            msg == "data request 2")
+        if (msg == "statusRequestFrom1" ||
+            msg == "additionRequestFrom1" ||
+            msg == "multiplicationRequestFrom1")
         {
             // remember what the nature of our request is for filtering replies
             m_reponseContext = msg;
@@ -451,30 +463,35 @@ std::string App::DetermineAppHealth() {
     return m_appHealth;
 }
 
-void App::DoWork(const std::string receivedTopic, std::queue <std::unique_ptr<Message>>& workQueue)
+void App::DoWork(const std::string receivedTopic)
 {
-     // based on topic received, determine what struct to fill and send back to requester
-     std::string responseTopic = {};
-     std::string output = {};
+     // THIS IS WHERE THE ACTUAL MANIPULATION OF DATA HAPPENS I.E. WORK
+     // RIGHT NOW WE JUST COUT STUFF, BUT ONE COULD DO COOL THINGS HERE I SUPPOSE
 
-     std::unique_ptr<Message> msg = std::move(workQueue.front());
-     while (!workQueue.empty()) 
+     while (!m_workQueue.empty())
      {
-     /*  // DUMMY1 ISNT SUPPOSED TO BE REQUESTED OF BY ANYONE ELSE RIGHT NOW
-     *   // ******* THESE ARE REQUEST TOPICS  ********  //
+         std::unique_ptr<Message> payload = std::move(m_workQueue.front());
+         m_workQueue.pop();
+         
+         std::string responseTopic = {};
+         std::string output = {};        // text to display on console window
+
+         // ******* THESE ARE REQUEST TOPICS  ********  //
          // send a payload based on what was asked for  //
 
-     * if( workQueue.front() == nullptr) // we are only doing work on 
-     * {
-     *     if (recievedTopic == "status request")
-           {
+         if (!payload) // handle purely a request
+         {
+             if (receivedTopic == "statusRequestFrom2" || receivedTopic == "statusRequestFrom3")
+             {
+                 responseTopic = (receivedTopic == "statusRequestFrom2") ? "statusResponseTo2" : "statusResponseTo3";
+                 AppStatus A;
+                 A.appId = m_appId;
+                 A.appHealth = DetermineAppHealth();
+                 A.appRuntime = GetAppRunningTime();
 
-             responseTopic = "statusDataResponse";
-             AppStatus A;
+                 // print out the data so the user can verify
 
-             A.appRuntime = GetAppRunningTime();
-             // print out the data so the user can verify
-             output = "Sent Message has runtime of " + std::to_string(A.appRuntime);
+                 output = "I'm sending my id: " + A.appId + " health: " + A.appHealth + " and running time: " + std::to_string(A.appRuntime);
 
                  if (m_publisher)
                  {
@@ -489,9 +506,9 @@ void App::DoWork(const std::string receivedTopic, std::queue <std::unique_ptr<Me
                      }
                  }
              }
-             else if (receivedTopic == "data request 1")
+             else if (receivedTopic == "additionRequestFrom2" || receivedTopic == "additionRequestFrom3")
              {
-                 responseTopic = "additionDataResponse";
+                 responseTopic = (receivedTopic == "additionRequestFrom2") ? "additionResponseTo2" : "additionResponseTo3";
                  AppDataRequest1 A;
 
                  A.appId = m_appId;
@@ -513,9 +530,10 @@ void App::DoWork(const std::string receivedTopic, std::queue <std::unique_ptr<Me
                      }
                  }
              }
-             else if (receivedTopic == "data request 2")
+             else if (receivedTopic == "multiplicationRequestFrom2" || receivedTopic == "multiplicationRequestFrom3")
              {
-                 responseTopic = "multiplicationDataResponse";
+
+                 responseTopic = (receivedTopic == "multiplicationRequestFrom2") ? "multiplicationResponseTo2" : "multiplicationResponseTo3";
                  AppDataRequest2 A;
                  A.appId = m_appId;
                  A.appHealth = DetermineAppHealth();
@@ -523,52 +541,49 @@ void App::DoWork(const std::string receivedTopic, std::queue <std::unique_ptr<Me
 
                  output = "I'm sending my id: " + A.appId + " health: " + A.appHealth + " and number to multiply with: " + std::to_string(A.numberToMultiply);
 
-             if (m_publisher)
-             {
-                 bool published = m_publisher->publish(responseTopic, A);
-                 if (published)
+                 if (m_publisher)
                  {
-                     MessageBoxW(m_hWnd, L"Response published successfully.", L"Info", MB_OK | MB_ICONINFORMATION);
-                 }
-                 else
-                 {
-                     MessageBoxW(m_hWnd, L"Failed to publish response.", L"Error", MB_OK | MB_ICONERROR);
+                     bool published = m_publisher->publish(responseTopic, A);
+                     if (published)
+                     {
+                         MessageBoxW(m_hWnd, L"Response published successfully.", L"Info", MB_OK | MB_ICONINFORMATION);
+                     }
+                     else
+                     {
+                         MessageBoxW(m_hWnd, L"Failed to publish response.", L"Error", MB_OK | MB_ICONERROR);
+                     }
                  }
              }
-
-          } 
-
-
-     *    }
-          else{}*/
-         
-        
-         // ******* THESE ARE SENT PAYLOADS  ******* //
-		 // THIS IS WHERE THE ACTUAL MANIPULATION OF DATA HAPPENS I.E. WORK
-		 // RIGHT NOW WE JUST COUT STUFF, BUT YOU COULD DO COOL THINGS HERE I SUPPOSE
-         if (AppStatus* s = dynamic_cast<AppStatus*>(msg.get()))
-         {
-             // do status stuff
-             output = s->appId +" is " + s->appHealth + " and has been running for " + std::to_string(s->appRuntime);
+             AsyncPrint(output);
+             continue;
          }
-
-         else if (AppDataRequest1* a = dynamic_cast<AppDataRequest1*>(msg.get()))
+         else 
          {
-             // do addition stuff
-             output = a->appId + " is " + a->appHealth + " has number to add of " + std::to_string(a->numberToAdd);
-         }
+             // ******* THESE ARE SENT PAYLOADS  ******* //
+             // work on the sent payload on the workQueue
+             // ascertain the sent struct type, fill data, and build text string
 
-         else if (AppDataRequest2* m = dynamic_cast<AppDataRequest2*>(msg.get()))
-         {
-             // do mulitplication stuff
-             output = m->appId + " is " + m->appHealth + " has number to multiply of  " + std::to_string(m->numberToMultiply);
+             if (AppStatus* s = dynamic_cast<AppStatus*>(payload.get()))
+             {
+                 // do status stuff
+                 output = s->appId + " is " + s->appHealth + " and has been running for " + std::to_string(s->appRuntime);
+             }
 
-         }
-         AsyncPrint(output);
-         workQueue.pop();         
-     };
+             else if (AppDataRequest1* a = dynamic_cast<AppDataRequest1*>(payload.get()))
+             {
+                 // do addition stuff
+                 output = a->appId + " is " + a->appHealth + " has number to add of " + std::to_string(a->numberToAdd);
+             }
+
+             else if (AppDataRequest2* m = dynamic_cast<AppDataRequest2*>(payload.get()))
+             {
+                 // do mulitplication stuff
+                 output = m->appId + " is " + m->appHealth + " has number to multiply of  " + std::to_string(m->numberToMultiply);
+             }
+             AsyncPrint(output);
+         };
+     }; 
      m_iHaveWorkToDo = false;
- 
 }
 
  void App::OutputThread() {

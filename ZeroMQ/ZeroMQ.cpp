@@ -407,11 +407,10 @@ void ZeroMQSubscriber::runLoop()
             }
 
             std::string topic(static_cast<const char*>(topicMsg.data()), topicMsg.size());
-            // if topic is a request topic, there will not be a payload frame, send the request to the service looking for it
-            if (topic == "status request" ||
-                topic == "data request 1" ||
-                topic == "data request 2")
+            // if topic was a request for data from other services, there will not be a payload frame, 
+            if (determineRequestOrResponse(topic) == "response")
             {
+                //IF(determineRequestOrResponse(topic)
                 if (callback_)
                     callback_(topic, nullptr);
             }
@@ -431,15 +430,17 @@ void ZeroMQSubscriber::runLoop()
             // context: these are reply's to requests from apps
             if (callback_)
             {
-                if (topic == "statusDataResponse")
+                //if receiving a status object 
+                if (determineRequestOrResponse(topic) == "statusRequest")
                 {
                     callback_(topic, std::unique_ptr<Message>(new AppStatus(deserializeStatus(data))));
                 }
-                else if (topic == "additionDataResponse")
+                //if receiving a data object (either for addition or multiplication in this case)
+                else if (determineRequestOrResponse(topic) == "additionRequest")
                 {
                     callback_(topic, std::unique_ptr<Message>(new AppDataRequest1(deserializeAddition(data))));
                 }
-                else if (topic == "multiplicationDataResponse")
+                else if (determineRequestOrResponse(topic) == "multiplicationRequest")
                 {
                     callback_(topic, std::unique_ptr<Message>(new AppDataRequest2(deserializeMultiplication(data))));
                 }
@@ -567,4 +568,39 @@ AppDataRequest2 ZeroMQSubscriber::deserializeMultiplication(const std::string& s
 
     return message;
 
+}
+
+//p.s. still ugly, going to need to work on how to organize topics, this does not scale well 
+std::string ZeroMQSubscriber::determineRequestOrResponse(const std::string& topic) 
+{
+    //if the topic is a request data topic, then output a string saying request
+    //else if the topic is a reponse topic, then determine what data is being sent back,
+    // and spit out that string type
+
+    std::string natureOfMessage = {};
+
+    if (topic == "statusRequestFrom1" || topic == "statusRequestFrom2" || topic == "statusRequestFrom3" ||
+        topic == "additionRequestFrom1" || topic == "additionRequestFrom2" || topic == "additionRequestFrom3" ||
+        topic == "multiplicationRequestFrom1" || topic == "multiplicationRequestFrom2" || topic == "multiplicationRequestFrom3")
+    {
+        natureOfMessage =  "response";
+    }
+    else
+    {
+        //if receiving a status object 
+        if (topic == "statusResponseTo1" || topic == "statusResponseTo2" || topic == "statusResponseTo3")
+        {
+            natureOfMessage = "statusRequest";
+        }
+        //if receiving a data object (either for addition or multiplication in this case)
+        else if (topic == "additionResponseTo1" || topic == "additionResponseTo2" || topic == "additionResponseTo3")
+        {
+            natureOfMessage = "additionRequest";
+        }
+        else if (topic == "multiplicationReponseTo1" || topic == "multiplicationReponseTo2" || topic == "multiplicationReponseTo3")
+        {
+            natureOfMessage = "multiplicationRequest";
+        }
+    }
+    return natureOfMessage;
 }
