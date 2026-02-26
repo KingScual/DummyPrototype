@@ -8,3 +8,14 @@ Each Dummy Service contains an App.cpp and App.h file where all the code will be
 The main branch doesn't contain any ZeroMQ code.
 This is becuase I wanted a clean version of the prototype that I know can be built and run.
 I'm thinking we can download or create our own branches to work on the code and keep the main branch as a clean version.
+
+First time clone and build instructions:
+
+*** Note: libzmq and cppzmq need to be **installed** and **built** first ***
+*** dependencies:
+*** libzmq and cppzmq will be here if installed via vcpkg:
+*** C:\vcpkg\installed\x64-windows\bin\libzmq-mt-4_3_5.dll
+*** C:\vcpkg\installed\x64-windows\include\zmq.hpp
+
+git clone https://github.com/KingScual/DummyPrototype.git
+
