@@ -45,8 +45,6 @@ public:
     std::string serialize(const AppDataRequest1& message);
     std::string serialize(const AppDataRequest2& message);
 
-
-
     // Close the socket and context.
     void close();
 
@@ -85,6 +83,12 @@ public:
     AppStatus deserializeStatus(const std::string& s);
     AppDataRequest1 deserializeAddition(const std::string& s);
     AppDataRequest2 deserializeMultiplication(const std::string& s);
+
+    // helper function to make response or request logic in subscriber much clearer
+    // considers all available topics and boils down the rec'd ZeroMQ message to
+    // "this was a request from an app to other apps, and this was a response"
+    // still need to return a string if it was a response to acertain the struct object to send
+    std::string determineRequestOrResponse(const std::string& topic);
 
 private:
     void runLoop();
