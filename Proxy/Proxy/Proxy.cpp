@@ -1,13 +1,12 @@
 // ConsoleApplication1.cpp : This file contains the 'main' function. Program execution begins and ends there.
 //
-
+#include "Proxy.h"
 #include <iostream>
 #include <zmq.hpp>
 
-
-
 int main()
 {
+
 	//make context thread
 	void* context = zmq_ctx_new();
 

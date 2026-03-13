@@ -13,7 +13,7 @@
 #include <iostream>
 #include "framework.h"
 #include "DummyDataService.h"
-#include "DummyDataService_Publisher.h"
+#include "RequestStatusWorker.h"
 
 #define MAX_LOADSTRING 100
 #define ID_BUTTON_GETSTATUS 1001
@@ -32,16 +32,17 @@
 // szTitle / szWindowClass
 //   - Buffers that hold the application title and window class name. Populated
 //     from resources at startup.
-DummyDataService_Publisher publisher;
-
-bool statusInit = 0;
-bool publisherCreated = 0;
-const wchar_t* prevStatus;
 
 HINSTANCE hInst;                                // current instance
 HWND hEditStatus = nullptr;                     // status text box
 WCHAR szTitle[MAX_LOADSTRING];                  // The title bar text
 WCHAR szWindowClass[MAX_LOADSTRING];            // the main window class name
+
+const std::string PROXYFRONTEND = "tcp://localhost:5557";
+const std::string PROXYBACKEND = "tcp://localhost:5558";
+
+// declare worker classes for dummy dataservice
+RequestStatusWorker requester;
 
 // Forward declarations of functions included in this code module:
 ATOM                MyRegisterClass(HINSTANCE hInstance);
@@ -56,17 +57,6 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 {
     UNREFERENCED_PARAMETER(hPrevInstance);
     UNREFERENCED_PARAMETER(lpCmdLine);
-
-    //Initialize Publisher
-    if (publisher.Initialize())
-    {
-        publisherCreated = 1;
-        OutputDebugString(L"Publisher Created\n");
-    }
-    else
-    {
-        OutputDebugString(L"Publisher Failed to Create\n");
-    }
 
     // Load string resources for the window title and class name. These are
     // defined in the resource script (e.g. .rc file) and localized if needed.
@@ -237,19 +227,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             case ID_BUTTON_GETSTATUS:
                 {
                     // Handler for the "Get Status" button.
-                   
+                    requester.RequestStatus(1);
                     const wchar_t* statusText;
                     //Set Status Initiate to 1 and publish to request system status.
-                    statusInit = 1;
-                    OutputDebugString(L"statusInit = 1\n");
-                    if (publisherCreated) 
-                    {
-                        bool statusInitPublished = publisher.Publish(statusInit);
-                    }
-                    else
-                    {
-                        OutputDebugString(L"statusInit could not be published\n");
-                    }
 
                     // Replace the static status string below with real status retrieval
                     statusText = L"Status: OK";

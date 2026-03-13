@@ -11,8 +11,9 @@
 // Forward declare or include ZeroMQ publisher helper
 #include "ZeroMQ.h"
 // Include of Proxy port constants for Pubs/Subs connections
-//#include "Proxy.h"
+#include "Proxy.h"
 #include "zmq.hpp"
+#include "GetStatusWorker.h"
 
 //std::string PROXYBACKEND = "tcp://localhost:5557";
 
@@ -28,8 +29,12 @@ public:
     // Initialize Subscriber. Return True on success.
     bool Initialize();
 
+    bool GetStatReq();
+
 private:
 
     // ZeroMQ subscriber used to receive messages in the background
     std::unique_ptr<ZeroMQSubscriber> m_subscriber;
+    GetStatusWorker* worker_ptr;
+    bool statReq = 0;
 };

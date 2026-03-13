@@ -128,9 +128,11 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\ZeroMQ\ZeroMQ.h" />
     <ClInclude Include="DummyBITService.h" />
     <ClInclude Include="DummyBITService_Subscriber.h" />
     <ClInclude Include="framework.h" />
+    <ClInclude Include="GetStatusWorker.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="targetver.h" />
   </ItemGroup>
@@ -138,6 +140,7 @@
     <ClCompile Include="..\..\ZeroMQ\ZeroMQ.cpp" />
     <ClCompile Include="DummyBITService.cpp" />
     <ClCompile Include="DummyBITService_Subscriber.cpp" />
+    <ClCompile Include="GetStatusWorker.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="DummyBITService.rc" />

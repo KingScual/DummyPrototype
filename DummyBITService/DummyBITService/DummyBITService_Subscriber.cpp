@@ -6,7 +6,7 @@
 
 // Constructor: initialize internal handles to null.
 DummyBITService_Subscriber::DummyBITService_Subscriber()
-    : m_subscriber(nullptr)
+    : m_subscriber(nullptr), worker_ptr(nullptr)
 {
 }
 
@@ -26,22 +26,39 @@ DummyBITService_Subscriber::~DummyBITService_Subscriber()
 // Initialize: register the window class, create the main window and child controls (button).
 // Returns true on success, false on failure.
 bool DummyBITService_Subscriber::Initialize()
-{
+{ 
+    worker_ptr = new GetStatusWorker();
     // Initialize ZeroMQ subscriber to connect to the proxy backend socket for messages in background and post to UI
     try {
+        //declare worker classes;
 		// Connect to the same multicast group; subscribe to topic 'StatusInit' to receive status updates from the service
-		m_subscriber = std::make_unique<ZeroMQSubscriber>("tcp://localhost:5556", std::vector<std::string>{""}); // subscribe to StatusInit topic
+		m_subscriber = std::make_unique<ZeroMQSubscriber>(PROXYBACKEND, std::vector<std::string>{"StatusInit"}); // subscribe to StatusInit topic
         if (m_subscriber->init()) {
             // start receiving; callback will post WM_ZMQ_MESSAGE to UI thread
-            m_subscriber->start( [this](const std::string& topic, const std::string& message) {
+            m_subscriber->start([this](const std::string& topic, const std::string& message) {
                 // save the status message
-                //bool status = message;
-                //if (!message.empty()) {
-                    //LPCSTR msg = message.c_str();
-                    //OutputDebugStringA(msg);
-                    //Code to display the status message in DummyDataService UI
-                //}
+                if (!topic.empty()) {
+                    LPCSTR tmsg = topic.c_str();
+                    OutputDebugStringA("\nReceived Topic: ");
+                    OutputDebugStringA(tmsg);
+                }
+                if (!message.empty()) {
+                    LPCSTR msg = message.c_str();
+                    OutputDebugStringA("\nReceived Message: ");
+                    OutputDebugStringA(msg);
+                    if (message == "true")
+                    {
+                        if (worker_ptr->StatusRequested()) {
+                            OutputDebugStringA("Status successfully requested\n");
+                            statReq = 1;
+                        }
+                        else {
+                            OutputDebugStringA("Status could not be requested\n");
+                        }
+                    }
+                }
                 } );
+
         }
         else {
             OutputDebugStringA("ZeroMQ subscriber init failed\n");
@@ -52,4 +69,9 @@ bool DummyBITService_Subscriber::Initialize()
     }
 
     return true;
+}
+
+bool DummyBITService_Subscriber::GetStatReq()
+{
+    return statReq;
 }

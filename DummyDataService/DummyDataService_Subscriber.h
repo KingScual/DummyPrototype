@@ -5,16 +5,13 @@
 #endif
 
 #include <Windows.h>
-#include <memory>
-
-
 // Forward declare or include ZeroMQ publisher helper
 #include "ZeroMQ.h"
 // Include of Proxy port constants for Pubs/Subs connections
-//#include "Proxy.h"
+#include "Proxy.h"
 #include "zmq.hpp"
 
-std::string PROXYBACKEND = "tcp://localhost:5557";
+//std::string PROXYBACKEND = "tcp://localhost:5557";
 
 class DummyDataService_Subscriber
 {

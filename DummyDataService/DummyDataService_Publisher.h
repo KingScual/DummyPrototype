@@ -7,7 +7,7 @@
 #include <Windows.h>
 #include <memory>
 #include <sstream>
-//#include "Proxy.h"
+#include "Proxy.h"
 #include "ZeroMQ.h"
 #include "zmq.hpp"
 

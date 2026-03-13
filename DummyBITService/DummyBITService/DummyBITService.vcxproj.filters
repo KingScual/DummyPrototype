@@ -30,6 +30,12 @@
     <ClInclude Include="DummyBITService_Subscriber.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\ZeroMQ\ZeroMQ.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="GetStatusWorker.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DummyBITService.cpp">
@@ -39,6 +45,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\..\ZeroMQ\ZeroMQ.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="GetStatusWorker.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

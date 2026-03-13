@@ -3,7 +3,6 @@
 #include <cwchar>
 #include <string>
 
-
 // Constructor: initialize internal handles to null.
 DummyDataService_Publisher::DummyDataService_Publisher()
     : m_publisher(nullptr)
@@ -23,7 +22,7 @@ bool DummyDataService_Publisher::Initialize()
     // Initialize ZeroMQ publisher to connect to the proxy frontend socket
     // Initialize ZeroMQ publisher to send messages when the button is clicked.
     try {
-       m_publisher = std::make_unique<ZeroMQPublisher>("tcp://localhost:5556");
+       m_publisher = std::make_unique<ZeroMQPublisher>(PROXYFRONTEND);
         if (!m_publisher->init()) {
             // Initialization failed; keep the pointer so publish() can attempt init lazily.
             OutputDebugStringA("ZeroMQ publisher init failed\n");
@@ -42,11 +41,11 @@ bool DummyDataService_Publisher::Publish(bool msg)
     bool published = m_publisher->publish("StatusInit",msg_str);
     if (published)
     {
-        OutputDebugString(L"StatusInit publihsed successfully\n");
+        OutputDebugString(L"Status Request publihsed successfully\n");
     }
     else
     {
-        OutputDebugString(L"StatusInit could not publish\n");
+        OutputDebugString(L"Status Request could not publish\n");
     }
     return true;
 }

@@ -4,7 +4,7 @@
 
 #include "framework.h"
 #include "DummyBITService.h"
-#include "DummyBITService_Subscriber.h"
+#include "DummyBitService_Subscriber.h"
 
 #define MAX_LOADSTRING 100
 #define ID_BUTTON_GETSTATUS 1001
@@ -16,6 +16,10 @@ HWND hEditStatusInit = nullptr;                 // status text box
 WCHAR szTitle[MAX_LOADSTRING];                  // The title bar text
 WCHAR szWindowClass[MAX_LOADSTRING];            // the main window class name
 
+// Global Proxy Variables
+const std::string PROXYFRONTEND = "tcp://localhost:5557";
+const std::string PROXYBACKEND = "tcp://localhost:5558";
+
 // Forward declarations of functions included in this code module:
 ATOM                MyRegisterClass(HINSTANCE hInstance);
 BOOL                InitInstance(HINSTANCE, int);
@@ -23,10 +27,7 @@ LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
 
 DummyBITService_Subscriber subscriber;
-
-bool statusInit = 0;
-const wchar_t* statusInitText;
-bool subscriberCreated = 0;
+LPCWSTR statusInitText;
 
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                      _In_opt_ HINSTANCE hPrevInstance,
@@ -39,7 +40,6 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     // Initialize Subscriber
      if (subscriber.Initialize())
     {
-        subscriberCreated = 1;
         OutputDebugString(L"Subscriber Created\n");
     }
     else
@@ -195,7 +195,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             PAINTSTRUCT ps;
             HDC hdc = BeginPaint(hWnd, &ps);
             // Update output on main window
-            if (statusInit == 1) {
+            if (subscriber.GetStatReq() == 1) {
                 statusInitText = L"1";
             }
             else {
