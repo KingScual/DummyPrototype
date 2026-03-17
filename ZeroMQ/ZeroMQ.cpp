@@ -1,12 +1,10 @@
 // ZeroMQ publisher implementation
 // Provides a simple thread-safe publisher wrapper using cppzmq (zmq.hpp).
+
 #include "ZeroMQ.h"
 
-#include <iostream>
 #include <thread>
 #include <chrono>
-#include <cerrno>
-#include <Windows.h>
 
 // Constructor
 // - store the connect address since we are using a proxy, create a ZMQ context with one IO thread
@@ -67,38 +65,6 @@ bool ZeroMQPublisher::init()
     }
 }
 
-// publish(topic, message)
-// - Ensures the socket is initialized, then sends a multipart message:
-//   first frame = topic, second frame = message
-// - Uses a mutex to make publishing thread-safe
-// - Any ZMQ errors are caught and logged
-bool ZeroMQPublisher::publish(const std::string& topic, const std::string& message)
-{
-    // Ensure socket is initialized
-    if (!initialized_) {
-        if (!init())
-            return false;
-    }
-
-    std::lock_guard<std::mutex> lock(mutex_);
-
-    try {
-        // Send topic as first frame
-        zmq::const_buffer topicBuf(topic.data(), topic.size());
-        socket_->send(topicBuf, zmq::send_flags::sndmore);
-
-        // Send message as second frame
-        zmq::const_buffer msgBuf(message.data(), message.size());
-        socket_->send(msgBuf, zmq::send_flags::none);
-
-        return true;
-    }
-    catch (const zmq::error_t& e) {
-        std::cerr << "ZeroMQPublisher publish error: " << e.what() << "\n";
-        return false;
-    }
-}
-
 // close()
 // - Closes and releases the socket safely
 // - Resets internal state; context is cleaned up by its destructor
@@ -116,6 +82,186 @@ void ZeroMQPublisher::close()
     }
     initialized_ = false;
     // context_ will be cleaned up in destructor
+}
+
+
+// publish(topic, message)
+// overloaded to send just a request publish(topic)
+// or to send the response topic w/ payload publish(topic, payload)
+// Ensures the socket is initialized, then sends a multipart message
+// Uses a mutex to make publishing thread-safe
+// Any ZMQ errors are caught and logged
+
+bool ZeroMQPublisher::publish(const std::string& topic)
+{
+    // Ensure socket is initialized
+    if (!initialized_) {
+        if (!init())
+            return false;
+    }
+    std::lock_guard<std::mutex> lock(mutex_);
+
+    try {
+
+        zmq::const_buffer topicBuf(topic.data(), topic.size());
+
+        socket_->send(topicBuf, zmq::send_flags::none);
+      
+        return true;
+    }
+    catch (const zmq::error_t& e) {
+        std::cerr << "ZeroMQPublisher publish error: " << e.what() << "\n";
+        return false;
+    }
+}
+
+bool ZeroMQPublisher::publish(const std::string& topic, const AppStatus& message)
+{
+    // Ensure socket is initialized
+    if (!initialized_) {
+        if (!init())
+            return false;
+    }
+
+    std::lock_guard<std::mutex> lock(mutex_);
+
+    try {
+
+        zmq::const_buffer topicBuf(topic.data(), topic.size());
+        // Serialize the payload first based on what topic is, then send topic 
+        // and payload as first and second frame respectively
+
+        std::string s = serialize(message);
+        zmq::message_t payload(s.size());
+        std::memcpy(payload.data(), s.data(), s.size());
+
+        socket_->send(topicBuf, zmq::send_flags::sndmore);
+
+        socket_->send(payload, zmq::send_flags::none);
+
+        return true;
+    }
+    catch (const zmq::error_t& e) {
+        std::cerr << "ZeroMQPublisher publish error: " << e.what() << "\n";
+        return false;
+    }
+}
+
+bool ZeroMQPublisher::publish(const std::string& topic, const AppDataRequest1& message)
+{
+    // Ensure socket is initialized
+    if (!initialized_) {
+        if (!init())
+            return false;
+    }
+
+    std::lock_guard<std::mutex> lock(mutex_);
+
+    try {
+
+        zmq::const_buffer topicBuf(topic.data(), topic.size());
+        // Serialize the payload first based on what topic is, then send topic 
+        // and payload as first and second frame respectively
+
+        std::string s = serialize(message);
+        zmq::message_t payload(s.size());
+        std::memcpy(payload.data(), s.data(), s.size());
+
+        socket_->send(topicBuf, zmq::send_flags::sndmore);
+
+        socket_->send(payload, zmq::send_flags::none);
+
+        return true;
+    }
+    catch (const zmq::error_t& e) {
+        std::cerr << "ZeroMQPublisher publish error: " << e.what() << "\n";
+        return false;
+    }
+}
+
+bool ZeroMQPublisher::publish(const std::string& topic, const AppDataRequest2& message)
+{
+    // Ensure socket is initialized
+    if (!initialized_) {
+        if (!init())
+            return false;
+    }
+
+    std::lock_guard<std::mutex> lock(mutex_);
+
+    try {
+
+        zmq::const_buffer topicBuf(topic.data(), topic.size());
+        // Serialize the payload first based on what topic is, then send topic 
+        // and payload as first and second frame respectively
+
+        std::string s = serialize(message);
+        zmq::message_t payload(s.size());
+        std::memcpy(payload.data(), s.data(), s.size());
+
+        socket_->send(topicBuf, zmq::send_flags::sndmore);
+
+        socket_->send(payload, zmq::send_flags::none);
+
+        return true;
+    }
+    catch (const zmq::error_t& e) {
+        std::cerr << "ZeroMQPublisher publish error: " << e.what() << "\n";
+        return false;
+    }
+}
+
+std::string ZeroMQPublisher::serialize(const AppStatus& message)
+{
+    std::ostringstream oss(std::ios::binary);
+    
+    size_t appId_size = message.appId.size();
+    oss.write(reinterpret_cast<const char*>(&appId_size), sizeof(appId_size));
+    oss.write(message.appId.data(), appId_size);
+
+    size_t appHealth_size = message.appHealth.size();
+    oss.write(reinterpret_cast<const char*>(&appHealth_size), sizeof(appHealth_size));
+    oss.write(message.appHealth.data(), appHealth_size);
+
+    oss.write(reinterpret_cast<const char*>(&message.appRuntime), sizeof(message.appRuntime));
+        
+    return oss.str();
+}
+
+std::string ZeroMQPublisher::serialize(const AppDataRequest1& message)
+{
+    std::ostringstream oss(std::ios::binary);
+    
+    size_t appId_size = message.appId.size();
+    oss.write(reinterpret_cast<const char*>(&appId_size), sizeof(appId_size));
+    oss.write(message.appId.data(), appId_size);
+
+    size_t appHealth_size = message.appHealth.size();
+    oss.write(reinterpret_cast<const char*>(&appHealth_size), sizeof(appHealth_size));
+    oss.write(message.appHealth.data(), appHealth_size);
+
+    oss.write(reinterpret_cast<const char*>(&message.numberToAdd), sizeof(message.numberToAdd));
+    
+
+    return oss.str();
+}
+
+std::string ZeroMQPublisher::serialize(const AppDataRequest2& message)
+{
+    std::ostringstream oss(std::ios::binary);
+
+    size_t appId_size = message.appId.size();
+    oss.write(reinterpret_cast<const char*>(&appId_size), sizeof(appId_size));
+    oss.write(message.appId.data(), appId_size);
+
+    size_t appHealth_size = message.appHealth.size();
+    oss.write(reinterpret_cast<const char*>(&appHealth_size), sizeof(appHealth_size));
+    oss.write(message.appHealth.data(), appHealth_size);
+
+    oss.write(reinterpret_cast<const char*>(&message.numberToMultiply), sizeof(message.numberToMultiply));
+
+
+    return oss.str();
 }
 
 
@@ -188,7 +334,7 @@ bool ZeroMQSubscriber::init()
 
 // start()
 // - Starts a background thread that receives messages and invokes the callback
-void ZeroMQSubscriber::start(std::function<void(const std::string&, const std::string&)> callback)
+void ZeroMQSubscriber::start(std::function<void(const std::string&, std::unique_ptr<Message>)> callback)
 {
     if (!callback)
         return;
@@ -256,23 +402,54 @@ void ZeroMQSubscriber::runLoop()
                 // timeout or interrupted, loop back and check running_
                 continue;
             }
-            OutputDebugStringA("Topic Received\n");
-            std::string topic(static_cast<const char*>(topicMsg.data()), topicMsg.size());
 
-            // Receive message frame
+            std::string topic(static_cast<const char*>(topicMsg.data()), topicMsg.size());
+            // if topic was a request for data from other services, there will not be a payload frame, 
+            if (determineRequestOrResponse(topic) == "response")
+            {
+                //IF(determineRequestOrResponse(topic)
+                if (callback_)
+                    callback_(topic, nullptr);
+            }
+            // Receive payload frame
             zmq::message_t msg;
             auto res2 = socket_->recv(msg, zmq::recv_flags::none);
             if (!res2) {
-                // incomplete message; skip
+                // incomplete message; 
                 continue;
-            }
-            OutputDebugStringA("Message Received\n");
-            std::string message(static_cast<const char*>(msg.data()), msg.size());
+            } 
 
-            // Invoke callback outside of any locks to avoid deadlocks
-            if (callback_) {
-                callback_(topic, message);
+            // unpacking the topic to be used and unpacking and determining payload to be deserialized
+
+            std::string data(static_cast<const char*>(msg.data()), msg.size());
+
+            // invoking callback to pop out of loop and send the topic / payload to App
+            // context: these are reply's to requests from apps
+            if (callback_)
+            {
+                //if receiving a status object 
+                if (determineRequestOrResponse(topic) == "statusRequest")
+                {
+                    callback_(topic, std::unique_ptr<Message>(new AppStatus(deserializeStatus(data))));
+                }
+                //if receiving a data object (either for addition or multiplication in this case)
+                else if (determineRequestOrResponse(topic) == "additionRequest")
+                {
+                    callback_(topic, std::unique_ptr<Message>(new AppDataRequest1(deserializeAddition(data))));
+                }
+                else if (determineRequestOrResponse(topic) == "multiplicationRequest")
+                {
+                    callback_(topic, std::unique_ptr<Message>(new AppDataRequest2(deserializeMultiplication(data))));
+                }
+
+
             }
+            // Invoke callback outside of any locks to avoid deadlocks, pulls me out of loop
+            /*  old mech
+            if (callback_) {
+                callback_(topic, msg.data());
+            }
+            */
         }
         catch (const zmq::error_t& e) {
             // EAGAIN indicates no message was available within the timeout
@@ -284,4 +461,143 @@ void ZeroMQSubscriber::runLoop()
             std::this_thread::sleep_for(std::chrono::milliseconds(50));
         }
     }
+}
+
+// deserialize...()
+// takes in the serialized message casted as a string from ZeroMQ 
+// and hand-unpacks
+// Note: this is not the most efficient way of doing it, but requires no external libraries
+// i.e. ProtoBuffers, FlatBuffers
+AppStatus ZeroMQSubscriber::deserializeStatus(const std::string& s)
+{
+    
+    AppStatus message;
+    
+    const char* ptr = s.data();
+    const char* end = ptr + s.size();
+    
+    auto read_raw = [&](void* dest, size_t size)
+        {
+            if (ptr + size > end)
+                throw std::runtime_error("Buffer underflow");
+            std::memcpy(dest, ptr, size);
+            ptr += size;
+        };
+    
+    size_t appId_size;
+    read_raw(&appId_size, sizeof(appId_size));
+    
+    message.appId.assign(ptr, appId_size);
+    ptr += appId_size;
+    
+    size_t appHealth_size;
+    read_raw(&appHealth_size, sizeof(appHealth_size));
+    
+    message.appHealth.assign(ptr, appHealth_size);
+    ptr += appHealth_size;
+    
+    read_raw(&message.appRuntime, sizeof(message.appRuntime));
+    
+    return message;
+    
+}
+AppDataRequest1 ZeroMQSubscriber::deserializeAddition(const std::string& s)
+{
+    AppDataRequest1 message;
+
+    const char* ptr = s.data();
+    const char* end = ptr + s.size();
+
+    auto read_raw = [&](void* dest, size_t size)
+        {
+            if (ptr + size > end)
+                throw std::runtime_error("Buffer underflow");
+            std::memcpy(dest, ptr, size);
+            ptr += size;
+        };
+
+    size_t appId_size;
+    read_raw(&appId_size, sizeof(appId_size));
+
+    message.appId.assign(ptr, appId_size);
+    ptr += appId_size;
+
+    size_t appHealth_size;
+    read_raw(&appHealth_size, sizeof(appHealth_size));
+
+    message.appHealth.assign(ptr, appHealth_size);
+    ptr += appHealth_size;
+
+    read_raw(&message.numberToAdd, sizeof(message.numberToAdd));
+
+    return message;
+
+
+}
+AppDataRequest2 ZeroMQSubscriber::deserializeMultiplication(const std::string& s)
+{
+    AppDataRequest2 message;
+
+    const char* ptr = s.data();
+    const char* end = ptr + s.size();
+
+    auto read_raw = [&](void* dest, size_t size)
+        {
+            if (ptr + size > end)
+                throw std::runtime_error("Buffer underflow");
+            std::memcpy(dest, ptr, size);
+            ptr += size;
+        };
+
+    size_t appId_size;
+    read_raw(&appId_size, sizeof(appId_size));
+
+    message.appId.assign(ptr, appId_size);
+    ptr += appId_size;
+
+    size_t appHealth_size;
+    read_raw(&appHealth_size, sizeof(appHealth_size));
+
+    message.appHealth.assign(ptr, appHealth_size);
+    ptr += appHealth_size;
+
+    read_raw(&message.numberToMultiply, sizeof(message.numberToMultiply));
+
+    return message;
+
+}
+
+//p.s. still ugly, going to need to work on how to organize topics, this does not scale well 
+std::string ZeroMQSubscriber::determineRequestOrResponse(const std::string& topic) 
+{
+    //if the topic is a request data topic, then output a string saying request
+    //else if the topic is a reponse topic, then determine what data is being sent back,
+    // and spit out that string type
+
+    std::string natureOfMessage = {};
+
+    if (topic == "statusRequestFrom1" || topic == "statusRequestFrom2" || topic == "statusRequestFrom3" ||
+        topic == "additionRequestFrom1" || topic == "additionRequestFrom2" || topic == "additionRequestFrom3" ||
+        topic == "multiplicationRequestFrom1" || topic == "multiplicationRequestFrom2" || topic == "multiplicationRequestFrom3")
+    {
+        natureOfMessage =  "response";
+    }
+    else
+    {
+        //if receiving a status object 
+        if (topic == "statusResponseTo1" || topic == "statusResponseTo2" || topic == "statusResponseTo3")
+        {
+            natureOfMessage = "statusRequest";
+        }
+        //if receiving a data object (either for addition or multiplication in this case)
+        else if (topic == "additionResponseTo1" || topic == "additionResponseTo2" || topic == "additionResponseTo3")
+        {
+            natureOfMessage = "additionRequest";
+        }
+        else if (topic == "multiplicationReponseTo1" || topic == "multiplicationReponseTo2" || topic == "multiplicationReponseTo3")
+        {
+            natureOfMessage = "multiplicationRequest";
+        }
+    }
+    return natureOfMessage;
 }

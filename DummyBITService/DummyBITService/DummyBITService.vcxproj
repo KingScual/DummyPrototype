@@ -102,7 +102,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>C:\vcpkg\vcpkg\installed\x64-windows\include;C:\Dummy\DummyPrototype\Proxy\Proxy;C:\Dummy\DummyPrototype\ZeroMQ;C:\Dummy\DummyPrototype\BitStreamConversion;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Dummy\DummyPrototype\Messages;C:\vcpkg\vcpkg\installed\x64-windows\include;C:\Dummy\DummyPrototype\Proxy\Proxy;C:\Dummy\DummyPrototype\ZeroMQ;C:\Dummy\DummyPrototype\BitStreamConversion;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>

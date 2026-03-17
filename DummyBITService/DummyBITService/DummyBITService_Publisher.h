@@ -30,7 +30,7 @@ public:
     //Initialize Publisher. Returns true on success.
     bool Initialize();
 
-    bool Publish(bool msg);
+    bool Publish(bool msg, double startTime);
 
 private:
 

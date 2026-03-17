@@ -3,12 +3,15 @@
 #include <iostream>
 
 #include "framework.h"
+#include <cstdio>
 #include "DummyBITService.h"
 #include "DummyBitService_Subscriber.h"
+
 
 #define MAX_LOADSTRING 100
 #define ID_BUTTON_GETSTATUS 1001
 #define ID_EDIT_STATUS 1002
+
 
 // Global Variables:
 HINSTANCE hInst;                                // current instance

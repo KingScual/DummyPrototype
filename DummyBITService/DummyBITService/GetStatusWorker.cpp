@@ -26,9 +26,9 @@ bool GetStatusWorker::InitializePub() {
 }
 
 
-bool GetStatusWorker::StatusRequested()
+bool GetStatusWorker::StatusRequested(double startTime)
 {
-    if (RunBIT()) {
+    if (RunBIT(startTime)) {
         OutputDebugStringA("BIT successful\n");
     }
     else {
@@ -37,17 +37,17 @@ bool GetStatusWorker::StatusRequested()
     return TRUE;
 }
 
-bool GetStatusWorker::RunBIT() {
+bool GetStatusWorker::RunBIT(double startTime) {
     //insert code to simulate BIT
-    SetStatus(1);
+    SetStatus(1, startTime);
     return TRUE;
 }
 
-void GetStatusWorker::SetStatus(bool bitStatus)
+void GetStatusWorker::SetStatus(bool bitStatus, double startTime)
 {
     OutputDebugStringA("\nStatus: Good\n");
     status = bitStatus;
-    publisher.Publish(status);
+    publisher.Publish(status, startTime);
 }
 
 bool GetStatusWorker::GetStatus()

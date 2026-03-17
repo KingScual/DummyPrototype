@@ -10,8 +10,8 @@ public:
     GetStatusWorker();
     ~GetStatusWorker();
     bool InitializePub();
-    bool StatusRequested();
-    void SetStatus(bool bitStatus);
+    bool StatusRequested(double startTime);
+    void SetStatus(bool bitStatus, double StartTime);
     bool GetStatus(); //return status
 
 private:
@@ -21,5 +21,5 @@ private:
     DummyBITService_Publisher publisher;
     std::unique_ptr<ZeroMQPublisher> m_publisher;
 
-    bool RunBIT();
+    bool RunBIT(double startTime);
 };

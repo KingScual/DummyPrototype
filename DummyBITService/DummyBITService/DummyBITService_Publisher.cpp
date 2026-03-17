@@ -15,16 +15,15 @@ DummyBITService_Publisher::~DummyBITService_Publisher()
     // m_publisher will be cleaned up automatically (its destructor calls close())
 }
 
-// Initialize: register the window class, create the main window and child controls (button).
+// Initialize: Initialize publisher
 // Returns true on success, false on failure.
 bool DummyBITService_Publisher::Initialize()
 {
     // Initialize ZeroMQ publisher to connect to the proxy frontend socket
-    // Initialize ZeroMQ publisher to send messages when the button is clicked.
     try {
        m_publisher = std::make_unique<ZeroMQPublisher>(PROXYFRONTEND);
         if (!m_publisher->init()) {
-            // Initialization failed; keep the pointer so publish() can attempt init lazily.
+            // Initialization failed
             OutputDebugStringA("ZeroMQ publisher init failed\n");
         }
     }
@@ -35,10 +34,21 @@ bool DummyBITService_Publisher::Initialize()
     return true;
 }
 
-bool DummyBITService_Publisher::Publish(bool msg)
+bool DummyBITService_Publisher::Publish(bool msg, double startTime)
 {
-    std::string msg_str = msg ? "true" : "false";
-    bool published = m_publisher->publish("Status",msg_str);
+    AppStatus message;
+    if (msg)
+    {
+        message.appId = "BIT Service";
+        message.appHealth = "Good";
+        message.appRuntime = (clock() - startTime) / CLOCKS_PER_SEC;
+    }
+    else {
+        message.appId = "BIT Service";
+        message.appHealth = "Bad";
+        message.appRuntime = (clock() - startTime) / CLOCKS_PER_SEC;
+    }
+    bool published = m_publisher->publish("Status",message);
     if (published)
     {
         OutputDebugString(L"Status publihsed successfully\n");

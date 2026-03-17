@@ -37,8 +37,16 @@ bool DummyDataService_Publisher::Initialize()
 
 bool DummyDataService_Publisher::Publish(bool msg)
 {
-    std::string msg_str = msg ? "true" : "false";
-    bool published = m_publisher->publish("StatusInit",msg_str);
+    AppDataRequest1 request;
+    if (msg) {
+        request.appId = "Data Service";
+        request.appHealth = "Good";
+    }
+    else {
+        request.appId = "Data Service";
+        request.appHealth = "bad";
+    }
+    bool published = m_publisher->publish("StatusRequest",request);
     if (published)
     {
         OutputDebugString(L"Status Request publihsed successfully\n");

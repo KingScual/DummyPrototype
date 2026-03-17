@@ -33,14 +33,18 @@ bool DummyDataService_Subscriber::Initialize()
 		m_subscriber = std::make_unique<ZeroMQSubscriber>(PROXYBACKEND, std::vector<std::string>{"Status"}); // subscribe to Status topic
         if (m_subscriber->init()) {
             // start receiving; callback will post WM_ZMQ_MESSAGE to UI thread
-            m_subscriber->start( [this](const std::string& topic, const std::string& message) {
+            m_subscriber->start( [this](const std::string& topic, std::unique_ptr<Message> message) {
                 // save the status message
                 if (!topic.empty()) {
                     LPCSTR tmsg = topic.c_str();
                     OutputDebugStringA("\nReceived Topic: ");
                     OutputDebugStringA(tmsg);
+                    if (tmsg == "Status") {
+                        //OutputDebugStringA(message)
+                        //Insert code to do something when topic received.
+                    }
                 }
-                if (!message.empty()) {
+                /*if (!message.empty()) {
                     LPCSTR msg = message.c_str();
                     OutputDebugStringA("\nReceived Message: ");
                     OutputDebugStringA(msg);
@@ -49,7 +53,7 @@ bool DummyDataService_Subscriber::Initialize()
                         status = message;
                         OutputDebugStringA("Status successfully received\n");
                     }
-                }
+                }*/
             } );
         }
         else {
