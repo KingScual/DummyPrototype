@@ -10,6 +10,7 @@ public:
     ~RequestStatusWorker();
     bool InitializePubSub();
     bool RequestStatus(bool statusInit); //return status
+    bool Status();
 
 private:
 	bool publisherCreated = 0;

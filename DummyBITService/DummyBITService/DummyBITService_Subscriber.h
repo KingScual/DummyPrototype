@@ -15,8 +15,6 @@
 #include "zmq.hpp"
 #include "GetStatusWorker.h"
 
-//std::string PROXYBACKEND = "tcp://localhost:5557";
-
 class DummyBITService_Subscriber
 {
 public:

@@ -24,9 +24,11 @@ public:
 
     // Initialize Subscriber. Return True on success.
     bool Initialize();
+    bool GetStatus();
 
 private:
 
     // ZeroMQ subscriber used to receive messages in the background
     std::unique_ptr<ZeroMQSubscriber> m_subscriber;
+    std::string status;
 };

@@ -44,6 +44,10 @@ const std::string PROXYBACKEND = "tcp://localhost:5558";
 // declare worker classes for dummy dataservice
 RequestStatusWorker requester;
 
+bool statusInit = 0;
+bool status;
+LPCWSTR statusText;
+
 // Forward declarations of functions included in this code module:
 ATOM                MyRegisterClass(HINSTANCE hInstance);
 BOOL                InitInstance(HINSTANCE, int);
@@ -83,6 +87,14 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     // - TranslateMessage / DispatchMessage dispatch to WndProc.
     while (GetMessage(&msg, nullptr, 0, 0))
     {
+        if (requester.Status()) {
+                statusText = L"Good";
+            }
+            if (!requester.Status()) {
+                statusText = L"BAD";
+            }
+            // TODO: Add any custom drawing code that uses `hdc` here.
+            SetWindowTextW(hEditStatus, statusText);
         if (!TranslateAccelerator(msg.hwnd, hAccelTable, &msg))
         {
             TranslateMessage(&msg);
@@ -228,24 +240,16 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 {
                     // Handler for the "Get Status" button.
                     requester.RequestStatus(1);
+                    statusInit = 1;
                     const wchar_t* statusText;
                     //Set Status Initiate to 1 and publish to request system status.
 
                     // Replace the static status string below with real status retrieval
-                    statusText = L"Status: OK";
-                    
-                    //Psuedo code for retrieving status
-                    /*
-                    if(statusActive == 1)
-                    {
-                        statusText = subscriber();
-                    }
-                    
-                    */
+                    //statusText = L"Status: OK";
 
                     // If the edit control was created successfully, set its text so the
                     // user sees the status. If not, fall back to a message box.
-                    if (hEditStatus)
+                    /*if (hEditStatus)
                     {
                         SetWindowTextW(hEditStatus, statusText);
                     }
@@ -253,7 +257,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     {
                         // Fallback for robustness.
                         MessageBoxW(hWnd, statusText, L"Service Status", MB_OK | MB_ICONINFORMATION);
-                    }
+                    }*/
                 }
                 break;
             default:
@@ -269,7 +273,14 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             // just call BeginPaint/EndPaint to validate the update region.
             PAINTSTRUCT ps;
             HDC hdc = BeginPaint(hWnd, &ps);
+            /*if (requester.Status()) {
+                statusText = L"Good";
+            }
+            if (!requester.Status()) {
+                statusText = L"BAD";
+            }
             // TODO: Add any custom drawing code that uses `hdc` here.
+            SetWindowTextW(hEditStatus, statusText);*/
             EndPaint(hWnd, &ps);
         }
         break;

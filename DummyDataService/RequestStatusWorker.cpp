@@ -50,3 +50,9 @@ bool RequestStatusWorker::RequestStatus(bool statusInit)
     }
     return 0;
 }
+
+bool RequestStatusWorker::Status()
+{
+    bool state = subscriber.GetStatus();
+    return state;
+}

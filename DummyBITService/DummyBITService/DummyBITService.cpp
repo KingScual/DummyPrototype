@@ -27,6 +27,8 @@ LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
 
 DummyBITService_Subscriber subscriber;
+bool previousStat = 0;
+bool currentStat = 0;
 LPCWSTR statusInitText;
 
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
@@ -65,6 +67,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     // Main message loop:
     while (GetMessage(&msg, nullptr, 0, 0))
     {
+        RedrawWindow(msg.hwnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
         if (!TranslateAccelerator(msg.hwnd, hAccelTable, &msg))
         {
             TranslateMessage(&msg);
@@ -191,18 +194,17 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         break;
     case WM_PAINT:
         {
-            
             PAINTSTRUCT ps;
-            HDC hdc = BeginPaint(hWnd, &ps);
-            // Update output on main window
-            if (subscriber.GetStatReq() == 1) {
-                statusInitText = L"1";
-            }
-            else {
-                statusInitText = L"0";
-            }
-            SetWindowTextW(hEditStatusInit, statusInitText);
-            EndPaint(hWnd, &ps);
+                HDC hdc = BeginPaint(hWnd, &ps);
+                // Update output on main window
+                if (subscriber.GetStatReq() == 1) {
+                    statusInitText = L"1";
+                }
+                else {
+                    statusInitText = L"0";
+                }
+                SetWindowTextW(hEditStatusInit, statusInitText);
+                EndPaint(hWnd, &ps);
         }
         break;
     case WM_DESTROY:

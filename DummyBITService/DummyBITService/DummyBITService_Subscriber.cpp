@@ -61,7 +61,7 @@ bool DummyBITService_Subscriber::Initialize()
 
         }
         else {
-            OutputDebugStringA("ZeroMQ subscriber init failed\n");
+            OutputDebugStringA("\nZeroMQ subscriber init failed\n");
         }
     }
     catch (const std::exception& ex) {

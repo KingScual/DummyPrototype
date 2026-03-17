@@ -35,14 +35,25 @@ bool DummyDataService_Subscriber::Initialize()
             // start receiving; callback will post WM_ZMQ_MESSAGE to UI thread
             m_subscriber->start( [this](const std::string& topic, const std::string& message) {
                 // save the status message
-                //bool status = message;
-                //if (message != NULL) {
-                    //Code to display the status message in DummyDataService UI
-                //}
-                } );
+                if (!topic.empty()) {
+                    LPCSTR tmsg = topic.c_str();
+                    OutputDebugStringA("\nReceived Topic: ");
+                    OutputDebugStringA(tmsg);
+                }
+                if (!message.empty()) {
+                    LPCSTR msg = message.c_str();
+                    OutputDebugStringA("\nReceived Message: ");
+                    OutputDebugStringA(msg);
+                    if (message == "true")
+                    {
+                        status = message;
+                        OutputDebugStringA("Status successfully received\n");
+                    }
+                }
+            } );
         }
         else {
-            OutputDebugStringA("ZeroMQ subscriber init failed\n");
+            OutputDebugStringA("\nZeroMQ subscriber init failed\n");
         }
     }
     catch (const std::exception& ex) {
@@ -50,4 +61,15 @@ bool DummyDataService_Subscriber::Initialize()
     }
 
     return true;
+}
+
+bool DummyDataService_Subscriber::GetStatus() {
+    bool state = 0;
+    if (status == "good") {
+        state = TRUE;
+    }
+    else {
+        state = FALSE;
+    }
+    return state;
 }

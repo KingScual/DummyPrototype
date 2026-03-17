@@ -1,14 +1,16 @@
 #include "GetStatusWorker.h"
 
-GetStatusWorker::GetStatusWorker() {
-    //InitializePub();
+GetStatusWorker::GetStatusWorker()
+: m_publisher(nullptr)
+{
+    InitializePub();
 }
 
 GetStatusWorker::~GetStatusWorker() {
 
 }
 
-/*bool GetStatusWorker::InitializePub() {
+bool GetStatusWorker::InitializePub() {
 
     if (publisher.Initialize())
     {
@@ -20,24 +22,9 @@ GetStatusWorker::~GetStatusWorker() {
         OutputDebugString(L"Publisher initialization failed\n");
     }
 
-     //Initialize Subscriber
-    if (subscriber.Initialize())
-    {
-        subscriberCreated = 1;
-        OutputDebugString(L"Subscriber initialized\n");
-    }
-    else
-    {
-        OutputDebugString(L"Subscriber initialization failed\n");
-    }
-
-    if (publisherCreated == 1 && subscriberCreated == 1) {
-        return 1;
-    }
-
     return 0;
 }
-*/
+
 
 bool GetStatusWorker::StatusRequested()
 {
@@ -58,8 +45,9 @@ bool GetStatusWorker::RunBIT() {
 
 void GetStatusWorker::SetStatus(bool bitStatus)
 {
-    OutputDebugStringA("Status: Good\n");
+    OutputDebugStringA("\nStatus: Good\n");
     status = bitStatus;
+    publisher.Publish(status);
 }
 
 bool GetStatusWorker::GetStatus()
