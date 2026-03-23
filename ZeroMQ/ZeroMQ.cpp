@@ -393,6 +393,7 @@ void ZeroMQSubscriber::close()
 // - Uses the short receive timeout set in init() so it can exit promptly when stop() is called
 void ZeroMQSubscriber::runLoop()
 {
+    std::cout << "Starting subscriber loop\n";
     while (running_.load()) {
         try {
             // Receive topic frame
@@ -578,14 +579,15 @@ std::string ZeroMQSubscriber::determineRequestOrResponse(const std::string& topi
 
     if (topic == "statusRequestFrom1" || topic == "statusRequestFrom2" || topic == "statusRequestFrom3" ||
         topic == "additionRequestFrom1" || topic == "additionRequestFrom2" || topic == "additionRequestFrom3" ||
-        topic == "multiplicationRequestFrom1" || topic == "multiplicationRequestFrom2" || topic == "multiplicationRequestFrom3")
+        topic == "multiplicationRequestFrom1" || topic == "multiplicationRequestFrom2" || topic == "multiplicationRequestFrom3" ||
+        topic == "statusRequestFromDummyDataService")
     {
         natureOfMessage =  "response";
     }
     else
     {
         //if receiving a status object 
-        if (topic == "statusResponseTo1" || topic == "statusResponseTo2" || topic == "statusResponseTo3")
+        if (topic == "statusResponseTo1" || topic == "statusResponseTo2" || topic == "statusResponseTo3" || topic == "statusResponseToDummyDataService")
         {
             natureOfMessage = "statusRequest";
         }

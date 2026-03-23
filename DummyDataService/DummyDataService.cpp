@@ -10,7 +10,7 @@
 // - Keeps UI logic synchronous and single-threaded for simplicity.
 // - Replace the placeholder status retrieval in the button handler with
 //   real logic as needed.
-#include <iostream>
+/*#include <iostream>
 #include "framework.h"
 #include "DummyDataService.h"
 #include "RequestStatusWorker.h"
@@ -257,7 +257,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     {
                         // Fallback for robustness.
                         MessageBoxW(hWnd, statusText, L"Service Status", MB_OK | MB_ICONINFORMATION);
-                    }*/
+                    }
                 }
                 break;
             default:
@@ -280,7 +280,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 statusText = L"BAD";
             }
             // TODO: Add any custom drawing code that uses `hdc` here.
-            SetWindowTextW(hEditStatus, statusText);*/
+            SetWindowTextW(hEditStatus, statusText);
             EndPaint(hWnd, &ps);
         }
         break;
@@ -327,3 +327,4 @@ INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 
     return (INT_PTR)FALSE;
 }
+*/

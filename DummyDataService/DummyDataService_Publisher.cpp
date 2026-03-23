@@ -25,35 +25,31 @@ bool DummyDataService_Publisher::Initialize()
        m_publisher = std::make_unique<ZeroMQPublisher>(PROXYFRONTEND);
         if (!m_publisher->init()) {
             // Initialization failed; keep the pointer so publish() can attempt init lazily.
-            OutputDebugStringA("ZeroMQ publisher init failed\n");
+            std::cout <<"ZeroMQ publisher init failed\n";
         }
     }
     catch (const std::exception& ex) {
         // If ZeroMQ or allocation throws, log but continue running the UI
-        OutputDebugStringA(ex.what());
+        std::cout << ex.what();
     }
     return true;
 }
 
-bool DummyDataService_Publisher::Publish(bool msg)
+bool DummyDataService_Publisher::Publish()
 {
     AppDataRequest1 request;
-    if (msg) {
-        request.appId = "Data Service";
-        request.appHealth = "Good";
-    }
-    else {
-        request.appId = "Data Service";
-        request.appHealth = "bad";
-    }
-    bool published = m_publisher->publish("StatusRequest",request);
+
+    request.appId = "Data Service";
+    request.appHealth = "Good";
+
+    bool published = m_publisher->publish("statusRequestFromDummyDataService", request);
     if (published)
     {
-        OutputDebugString(L"Status Request publihsed successfully\n");
+        std::cout << "Status request publihsed successfully\n";
     }
     else
     {
-        OutputDebugString(L"Status Request could not publish\n");
+        std::cout << "Status request could not publish\n";
     }
     return true;
 }

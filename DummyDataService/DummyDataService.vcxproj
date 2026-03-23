@@ -108,7 +108,7 @@
       <AdditionalIncludeDirectories>C:\Dummy\DummyPrototype\Messages;C:\Dummy\DummyPrototype\BitStreamConversion;C:\Dummy\DummyPrototype\ZeroMQ;C:\Dummy\DummyPrototype\Proxy\Proxy;C:\vcpkg\vcpkg\installed\x64-windows\include</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
-      <SubSystem>Windows</SubSystem>
+      <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalDependencies>"C:\vcpkg\vcpkg\installed\x64-windows\lib\libzmq-mt-4_3_5.lib";%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
@@ -131,7 +131,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="DummyDataService.h" />
+    <ClInclude Include="..\ZeroMQ\ZeroMQ.h" />
     <ClInclude Include="DummyDataService_Publisher.h" />
     <ClInclude Include="DummyDataService_Subscriber.h" />
     <ClInclude Include="framework.h" />
@@ -142,6 +142,7 @@
   <ItemGroup>
     <ClCompile Include="..\ZeroMQ\ZeroMQ.cpp" />
     <ClCompile Include="DummyDataService.cpp" />
+    <ClCompile Include="DummyDataService_Initializer.cpp" />
     <ClCompile Include="DummyDataService_Publisher.cpp" />
     <ClCompile Include="DummyDataService_Subscriber.cpp" />
     <ClCompile Include="RequestStatusWorker.cpp" />

@@ -1,55 +1,80 @@
+#include <random>
 #include "GetStatusWorker.h"
 
+// Constructor
 GetStatusWorker::GetStatusWorker()
-: m_publisher(nullptr)
 {
-    InitializePub();
+    //Initialize publisher
+    std::cout << "Worker Initialized\n";
+    if (publisher.Initialize())
+    {
+        publisherCreated = 1;
+        std::cout << "Publisher initialized\n";
+    }
+    else
+    {
+        std::cout << "Publisher initialization failed\n";
+    }
 }
 
+// Desctructor
 GetStatusWorker::~GetStatusWorker() {
 
 }
 
-bool GetStatusWorker::InitializePub() {
-
-    if (publisher.Initialize())
-    {
-        publisherCreated = 1;
-        OutputDebugString(L"Publisher initialized\n");
-    }
-    else
-    {
-        OutputDebugString(L"Publisher initialization failed\n");
-    }
-
-    return 0;
-}
-
-
+// IBIT requested
 bool GetStatusWorker::StatusRequested(double startTime)
 {
+    bool r_flag = false;
+    // Trigger simulated BIT
     if (RunBIT(startTime)) {
-        OutputDebugStringA("BIT successful\n");
+        std::cout << "BIT successful\n";
+        r_flag = true;
     }
     else {
-        OutputDebugStringA("BIT failed\n");
+        std::cout << "BIT failed\n";
     }
-    return TRUE;
+    return r_flag;
 }
 
+// Simulated BIT API calls and publish results
 bool GetStatusWorker::RunBIT(double startTime) {
-    //insert code to simulate BIT
-    SetStatus(1, startTime);
-    return TRUE;
+    
+    // simulate BIT by generating random number. If even, then status good; if odd, then status bad
+   // srand(time(0));
+   // int randomNum = rand() % 101;
+    //std::cout << "RANDOMNUM: " << randomNum;
+    std::random_device dev;
+    std::mt19937 rng(dev());
+    std::uniform_int_distribution<std::mt19937::result_type> dist6(1,100);
+    int randomNum = dist6(rng);
+    bool randomStatus = 0;
+    if (randomNum % 2 == 0) {
+        randomStatus = 1;
+    }
+    
+    // Set status member variable with BIT result
+    SetStatus(randomStatus);
+
+    // Publish BIT result
+    if (publisherCreated) {
+        publisher.Publish(status, startTime);
+    }
+    else {
+        std::cout << "Could not publish. Publisher socket not created.\n";
+    }
+    return true;
 }
 
-void GetStatusWorker::SetStatus(bool bitStatus, double startTime)
+// Sets status member variable
+void GetStatusWorker::SetStatus(bool bitStatus)
 {
-    OutputDebugStringA("\nStatus: Good\n");
+    std::string stringStatus = (bitStatus) ? "Good" : "Bad";
+    std::cout << "\nStatus: " << stringStatus << "\n";
     status = bitStatus;
-    publisher.Publish(status, startTime);
 }
 
+// Returns status member variable
 bool GetStatusWorker::GetStatus()
 {
     return status;

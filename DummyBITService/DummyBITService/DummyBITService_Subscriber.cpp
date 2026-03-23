@@ -24,69 +24,48 @@ DummyBITService_Subscriber::~DummyBITService_Subscriber()
 }
 
 
-// Initialize: initializes both the workers and subscriber listed in the constructor. Also, starts the "listening" of messages from other apps.
+// Initialize: initializes the subscribers and declares the workers listed in the constructor.
 // Returns true on success, false on failure.
 bool DummyBITService_Subscriber::Initialize()
 { 
-    //Initialize worker
+    // Initializes worker_ptr;
     worker_ptr = new GetStatusWorker();
     
-    // Initialize ZeroMQ subscriber to connect to the proxy backend socket for messages in background and post to UI
+    // Initialize ZeroMQ subscriber to connect to the proxy backend socket for messages in background.
     try {
 		// Setup subscriber to connect to proxy and list topics to subscribe to
 		m_subscriber = std::make_unique<ZeroMQSubscriber>(PROXYBACKEND, std::vector<std::string>{
             
             // List of topics to subscribe to
-            "StatusRequest"
+            "statusRequestFromDummyDataService"
         });
 
         // initialize subsbcriber and if successful, start loop to "listen" for subcribed topics
         if (m_subscriber->init()) {
-            // start receiving; callback will post WM_ZMQ_MESSAGE to UI thread
+            // start subscriber loop and listen for any published messages.
             m_subscriber->start([this](const std::string& topic, std::unique_ptr<Message> message) {
-                // if topic received, call worker to do work depending on topic.
+                // if topic received, then print to console and check the receiving topic.
                 if (!topic.empty()) {
-                    LPCSTR tmsg = topic.c_str();
-                    OutputDebugStringA("\nReceived Topic: ");
-                    OutputDebugStringA(tmsg);
-                    //do work depending on topic
-                    if (tmsg == "StatusRequest") {
+                    std::cout << "\nMessage Received:\n";
+                    std::cout << "Topic: " << topic;
+                    //do work depending on topic received
+                    if (topic == "statusRequestFromDummyDataService") {
+                        // start timer to keep track of how long a BIT request takes
                         m_appRuntimeStart = clock();
+                        // call worker to start BIT request
                         worker_ptr->StatusRequested(m_appRuntimeStart);
-                        statReq = 1;
                     }
                 }
-
-                /*if (!message.empty()) {
-                    LPCSTR msg = message.c_str();
-                    OutputDebugStringA("\nReceived Message: ");
-                    OutputDebugStringA(msg);
-                    if (message == "true")
-                    {
-                        if (worker_ptr->StatusRequested()) {
-                            OutputDebugStringA("Status successfully requested\n");
-                            statReq = 1;
-                        }
-                        else {
-                            OutputDebugStringA("Status could not be requested\n");
-                        }
-                    }
-                }*/
-                } );
+            } );
 
         }
         else {
-            OutputDebugStringA("\nZeroMQ subscriber init failed\n");
+            std::cout << "\nZeroMQ subscriber init failed\n";
         }
     }
     catch (const std::exception& ex) {
-        OutputDebugStringA(ex.what());
+        std::cout << ex.what();
     }
 
     return true;
-}
-
-bool DummyBITService_Subscriber::GetStatReq()
-{
-    return statReq;
 }

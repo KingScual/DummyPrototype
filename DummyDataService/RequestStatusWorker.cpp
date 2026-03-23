@@ -13,22 +13,22 @@ bool RequestStatusWorker::InitializePubSub(){
     if (publisher.Initialize())
     {
         publisherCreated = 1;
-        OutputDebugString(L"Publisher initialized\n");
+        std::cout << "Publisher initialized\n";
     }
     else
     {
-        OutputDebugString(L"Publisher initialization failed\n");
+        std::cout << "Publisher initialization failed\n";
     }
 
      //Initialize Subscriber
     if (subscriber.Initialize())
     {
         subscriberCreated = 1;
-        OutputDebugString(L"Subscriber initialized\n");
+        std::cout << "Subscriber initialized\n";
     }
     else
     {
-        OutputDebugString(L"Subscriber initialization failed\n");
+        std::cout << "Subscriber initialization failed\n";
     }
 
     if (publisherCreated == 1 && subscriberCreated == 1) {
@@ -38,15 +38,18 @@ bool RequestStatusWorker::InitializePubSub(){
     return 0;
 }
 
-bool RequestStatusWorker::RequestStatus(bool statusInit)
+bool RequestStatusWorker::RequestStatus(int num)
 {
     if (publisherCreated)
     {
-        bool statusReqPublished = publisher.Publish(statusInit);
+        for (int i = 0; i < num; i++) {
+            std::cout << i+1 << ": ";
+            publisher.Publish();
+        }
     }
     else
     {
-        OutputDebugString(L"Status Request could not be published\n");
+        std::cout << "Status Request could not be published\n";
     }
     return 0;
 }

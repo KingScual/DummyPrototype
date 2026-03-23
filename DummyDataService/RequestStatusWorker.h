@@ -9,7 +9,7 @@ public:
     RequestStatusWorker();
     ~RequestStatusWorker();
     bool InitializePubSub();
-    bool RequestStatus(bool statusInit); //return status
+    bool RequestStatus(int num); //return status
     bool Status();
 
 private:

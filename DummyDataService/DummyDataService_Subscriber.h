@@ -4,12 +4,12 @@
 #define NOMINMAX
 #endif
 
-#include <Windows.h>
 // Forward declare or include ZeroMQ publisher helper
 #include "ZeroMQ.h"
 // Include of Proxy port constants for Pubs/Subs connections
 #include "Proxy.h"
 #include "zmq.hpp"
+#include "Messages.h"
 
 //std::string PROXYBACKEND = "tcp://localhost:5557";
 

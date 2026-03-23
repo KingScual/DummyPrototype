@@ -17,6 +17,10 @@
 // Include of Proxy port constants for Pubs/Subs connections
 #include "Proxy.h"
 
+// Global Proxy Variables
+const std::string PROXYFRONTEND = "tcp://localhost:5557";
+const std::string PROXYBACKEND = "tcp://localhost:5558";
+
 // Simple application class that wraps a Win32 window and a button.
 class App
 {

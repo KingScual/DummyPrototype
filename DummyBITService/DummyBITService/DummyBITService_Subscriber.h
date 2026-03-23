@@ -1,39 +1,45 @@
+/*
+* 
+* DummyBITService_Subscriber.h
+* --------------------------------------------------------------
+* Description:
+* - Contains initialization of subscriber class
+* - Initializes all worker classes (only 1)
+* - Begins subscriber loop to "listen" for subscribed topics
+* --------------------------------------------------------------
+* 
+*/
+
 #pragma once
 
 #ifndef NOMINMAX
 #define NOMINMAX
 #endif
 
-#include <Windows.h>
-#include <memory>
-
-
-// Forward declare or include ZeroMQ publisher helper
 #include "ZeroMQ.h"
-// Include of Proxy port constants for Pubs/Subs connections
 #include "Proxy.h"
 #include "zmq.hpp"
 #include "GetStatusWorker.h"
+#include "Messages.h"
 
 class DummyBITService_Subscriber
 {
 public:
-    // Construct the DummyDataService_Subscriber object and initialize member variables.
+    // Constructor - Construct the DummyDataService_Subscriber object and initialize member variables.
     DummyBITService_Subscriber();
 
-    // Destroy the main window and unregister the window class.
+    // Destructor - Destroys subcriber if they exist
     ~DummyBITService_Subscriber();
 
-    // Initialize Subscriber. Return True on success.
+    // Initialize Subscriber and declare worker classes. Return True on success.
     bool Initialize();
-
-    bool GetStatReq();
 
 private:
 
     // ZeroMQ subscriber used to receive messages in the background
     std::unique_ptr<ZeroMQSubscriber> m_subscriber;
+    // a double used to keep track of runtime when BIT status requested.
     double m_appRuntimeStart;
+    // GetStatusWorker pointer used to point to worker class.
     GetStatusWorker* worker_ptr;
-    bool statReq = 0;
 };

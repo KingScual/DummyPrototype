@@ -30,38 +30,29 @@ bool DummyDataService_Subscriber::Initialize()
     // Initialize ZeroMQ subscriber to connect to the proxy backend socket for messages in background and post to UI
     try {
 		// Connect to the same multicast group; subscribe to topic 'Status' to receive status updates from the service
-		m_subscriber = std::make_unique<ZeroMQSubscriber>(PROXYBACKEND, std::vector<std::string>{"Status"}); // subscribe to Status topic
+		m_subscriber = std::make_unique<ZeroMQSubscriber>(PROXYBACKEND, std::vector<std::string>{"statusResponseToDummyDataService"}); // subscribe to Status topic
         if (m_subscriber->init()) {
             // start receiving; callback will post WM_ZMQ_MESSAGE to UI thread
             m_subscriber->start( [this](const std::string& topic, std::unique_ptr<Message> message) {
                 // save the status message
                 if (!topic.empty()) {
-                    LPCSTR tmsg = topic.c_str();
-                    OutputDebugStringA("\nReceived Topic: ");
-                    OutputDebugStringA(tmsg);
-                    if (tmsg == "Status") {
-                        //OutputDebugStringA(message)
-                        //Insert code to do something when topic received.
+                    std::cout << "\nMessage Received:";
+                    std::cout << "\nTopic: " << topic << "\n";
+                    if (topic == "statusResponseToDummyDataService") {
+                        AppStatus* A = dynamic_cast<AppStatus*>(message.get());
+                        std::cout << "appId: " << A->appId << "\n"
+                            << "appHealth: " << A->appHealth << "\n"
+                            << "appRuntime: " << A->appRuntime << "\n";
                     }
                 }
-                /*if (!message.empty()) {
-                    LPCSTR msg = message.c_str();
-                    OutputDebugStringA("\nReceived Message: ");
-                    OutputDebugStringA(msg);
-                    if (message == "true")
-                    {
-                        status = message;
-                        OutputDebugStringA("Status successfully received\n");
-                    }
-                }*/
             } );
         }
         else {
-            OutputDebugStringA("\nZeroMQ subscriber init failed\n");
+            std::cout <<"\nZeroMQ subscriber init failed\n";
         }
     }
     catch (const std::exception& ex) {
-        OutputDebugStringA(ex.what());
+        std::cout << ex.what();
     }
 
     return true;
@@ -70,10 +61,10 @@ bool DummyDataService_Subscriber::Initialize()
 bool DummyDataService_Subscriber::GetStatus() {
     bool state = 0;
     if (status == "good") {
-        state = TRUE;
+        state = true;
     }
     else {
-        state = FALSE;
+        state = false;
     }
     return state;
 }

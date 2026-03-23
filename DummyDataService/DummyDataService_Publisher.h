@@ -4,12 +4,11 @@
 #define NOMINMAX
 #endif
 
-#include <Windows.h>
-#include <memory>
 #include <sstream>
 #include "Proxy.h"
 #include "ZeroMQ.h"
 #include "zmq.hpp"
+#include "Messages.h"
 
 //std::string PROXYFRONTEND = "tcp://localhost:5556";
 
@@ -30,7 +29,7 @@ public:
     //Initialize Publisher. Returns true on success.
     bool Initialize();
 
-    bool Publish(bool msg);
+    bool Publish();
 
 private:
 

@@ -9,7 +9,7 @@ DummyBITService_Publisher::DummyBITService_Publisher()
 {
 }
 
-// Destructor: destroy the main window if created and unregister the window class.
+// Destructor
 DummyBITService_Publisher::~DummyBITService_Publisher()
 {
     // m_publisher will be cleaned up automatically (its destructor calls close())
@@ -24,19 +24,23 @@ bool DummyBITService_Publisher::Initialize()
        m_publisher = std::make_unique<ZeroMQPublisher>(PROXYFRONTEND);
         if (!m_publisher->init()) {
             // Initialization failed
-            OutputDebugStringA("ZeroMQ publisher init failed\n");
+            std::cout << "ZeroMQ publisher init failed\n";
         }
     }
     catch (const std::exception& ex) {
         // If ZeroMQ or allocation throws, log but continue running the UI
-        OutputDebugStringA(ex.what());
+        std::cout << ex.what();
     }
     return true;
 }
 
+// Publishes ZMQ messages found in Messages.h
 bool DummyBITService_Publisher::Publish(bool msg, double startTime)
 {
+    // Declare message
     AppStatus message;
+
+    // Fill message depending on system status
     if (msg)
     {
         message.appId = "BIT Service";
@@ -48,14 +52,18 @@ bool DummyBITService_Publisher::Publish(bool msg, double startTime)
         message.appHealth = "Bad";
         message.appRuntime = (clock() - startTime) / CLOCKS_PER_SEC;
     }
-    bool published = m_publisher->publish("Status",message);
+
+    // Publish message
+    bool published = m_publisher->publish("statusResponseToDummyDataService",message);
+    
     if (published)
     {
-        OutputDebugString(L"Status publihsed successfully\n");
+        std::cout << "Status publihsed successfully\n";
     }
     else
     {
-        OutputDebugString(L"Status could not publish\n");
+        std::cout << "Status could not publish\n";
     }
+
     return true;
 }
